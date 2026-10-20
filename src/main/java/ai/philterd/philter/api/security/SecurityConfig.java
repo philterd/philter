@@ -16,6 +16,11 @@
 package ai.philterd.philter.api.security;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.web.header.HeaderWriterFilter;
 import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.http.MediaType;
 import jakarta.servlet.http.HttpServletResponse;
@@ -60,21 +65,36 @@ public class SecurityConfig {
         return new SizeLimitingFilter(resolver);
     }
 
-    /**
-     * Answers a request the firewall refuses for its path with {@code {"message": ...}} JSON, as Philter's other
-     * errors are, rather than Spring's default error body. The message never echoes the path.
-     */
     /** The message for a request the firewall refuses for its path. */
     public static final String REQUEST_REJECTED = "The request was refused: its path contains a character or segment "
             + "that is not allowed, such as ;, an encoded %, an empty segment (//), or a . or .. segment.";
 
+    /**
+     * Answers a request the firewall refuses for its path with {@code {"message": ...}} JSON, as Philter's other
+     * errors are, rather than Spring's default error body. The message never echoes the path.
+     *
+     * <p>The firewall refuses the request before any chain runs, so the refusal is written through the
+     * {@link HeaderWriterFilter} of the chain the request would have reached, to carry the same security headers.
+     */
     @Bean
-    public RequestRejectedHandler requestRejectedHandler() {
+    public RequestRejectedHandler requestRejectedHandler(final ObjectProvider<SecurityFilterChain> chains) {
         return (request, response, requestRejectedException) -> {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            response.getWriter().write(gson.toJson(new GenericResponse(REQUEST_REJECTED, ErrorReasons.INVALID_REQUEST)));
+            final FilterChain writeRefusal = (req, res) -> {
+                final HttpServletResponse refusal = (HttpServletResponse) res;
+                refusal.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                refusal.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                refusal.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                refusal.getWriter().write(gson.toJson(new GenericResponse(REQUEST_REJECTED, ErrorReasons.INVALID_REQUEST)));
+            };
+            final Optional<Filter> headerWriter = chains.orderedStream()
+                    .filter(chain -> chain.matches(request))
+                    .findFirst()
+                    .flatMap(chain -> chain.getFilters().stream().filter(HeaderWriterFilter.class::isInstance).findFirst());
+            if (headerWriter.isPresent()) {
+                headerWriter.get().doFilter(request, response, writeRefusal);
+            } else {
+                writeRefusal.doFilter(request, response);
+            }
         };
     }
 

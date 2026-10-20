@@ -27,16 +27,24 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.env.Environment;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.web.firewall.RequestRejectedException;
+import org.springframework.security.web.firewall.RequestRejectedHandler;
 
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,6 +68,7 @@ class RefusedPathErrorsIT {
     @Autowired private ApiKeyDataService apiKeyDataService;
     @Autowired private PolicyDataService policyDataService;
     @Autowired private ContextDataService contextDataService;
+    @Autowired private RequestRejectedHandler requestRejectedHandler;
 
     private int port;
     private String key;
@@ -72,7 +81,7 @@ class RefusedPathErrorsIT {
         key = apiKeyDataService.createApiKey("req", userService.findByUsername(username).getId(), "test", ApiKeyScope.all()).getMessage();
     }
 
-    private record RawResponse(int status, String contentType, String body) { }
+    private record RawResponse(int status, String contentType, String body, Map<String, String> headers) { }
 
     private RawResponse get(final String path, final String accept) throws Exception {
         try (Socket socket = new Socket("localhost", port)) {
@@ -87,13 +96,11 @@ class RefusedPathErrorsIT {
                 // One chunk, then the terminating zero-length chunk.
                 body = body.isEmpty() || body.startsWith("0\r\n") ? "" : body.substring(body.indexOf("\r\n") + 2, body.lastIndexOf("\r\n0\r\n"));
             }
-            String contentType = "";
-            for (final String line : head.split("\r\n")) {
-                if (line.toLowerCase().startsWith("content-type:")) {
-                    contentType = line.substring("content-type:".length()).trim();
-                }
+            final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            for (final String line : head.substring(head.indexOf("\r\n") + 2).split("\r\n")) {
+                headers.put(line.substring(0, line.indexOf(':')).trim(), line.substring(line.indexOf(':') + 1).trim());
             }
-            return new RawResponse(Integer.parseInt(head.split(" ")[1]), contentType, body);
+            return new RawResponse(Integer.parseInt(head.split(" ")[1]), headers.getOrDefault("Content-Type", ""), body, headers);
         }
     }
 
@@ -124,6 +131,42 @@ class RefusedPathErrorsIT {
         assertEquals(400, response.status(), response.body());
         assertEquals(SecurityConfig.REQUEST_REJECTED, message(response));
         assertEquals("invalid_request", reason(response), response.body());
+    }
+
+    /** The headers the security chains write; HSTS only over HTTPS, so it is checked separately below. */
+    private static final List<String> SECURITY_HEADERS = List.of("X-Content-Type-Options", "X-Frame-Options",
+            "Content-Security-Policy", "Cache-Control", "Pragma", "Expires", "X-XSS-Protection");
+
+    @ParameterizedTest
+    @CsvSource({"/api/policies//details, /api/policies/x/details", "/actuator//health, /actuator/nope"})
+    @DisplayName("A path the firewall refuses carries the same security headers as its chain's other responses")
+    void firewallRefusalsCarryTheSecurityHeaders(final String refusedPath, final String ordinaryPath) throws Exception {
+        final RawResponse refused = get(refusedPath, "application/json");
+        assertEquals(400, refused.status(), refused.body());
+        assertEquals(SecurityConfig.REQUEST_REJECTED, message(refused));
+        assertEquals("nosniff", refused.headers().get("X-Content-Type-Options"), refused.headers().toString());
+
+        final RawResponse ordinary = get(ordinaryPath, "application/json");
+        assertEquals("nosniff", ordinary.headers().get("X-Content-Type-Options"), ordinary.headers().toString());
+        for (final String header : SECURITY_HEADERS) {
+            assertEquals(ordinary.headers().get(header), refused.headers().get(header), header + ": " + refused.headers());
+        }
+    }
+
+    @Test
+    @DisplayName("A path the firewall refuses over HTTPS carries Strict-Transport-Security")
+    void firewallRefusalsOverHttpsCarryHsts() throws Exception {
+        // The tests run over plain HTTP, and HSTS is only written to a secure request, so the handler is called directly.
+        final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/policies//details");
+        request.setSecure(true);
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+        requestRejectedHandler.handle(request, response, new RequestRejectedException("empty segment"));
+
+        assertEquals(400, response.getStatus());
+        assertEquals("max-age=31536000 ; includeSubDomains", response.getHeader("Strict-Transport-Security"));
+        assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
+        assertEquals(SecurityConfig.REQUEST_REJECTED,
+                new Gson().fromJson(response.getContentAsString(), JsonObject.class).get("message").getAsString());
     }
 
     @Test

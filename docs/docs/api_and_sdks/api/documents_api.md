@@ -62,6 +62,7 @@ When the document's context has the [redaction ledger](../../redaction/ledgers.m
 
 * `offset` (optional, default `0`)
 * `limit` (optional, default `25`, max `100`)
+* `q` (optional) - Only documents whose document ID or file name contains this value, ignoring case. Use it to find a document by the file name it was submitted with. See [Listings](../api.md#listings).
 * `status` (optional) - Only documents with this status: `PENDING`, `PROCESSING`, `COMPLETE`, or `FAILED`, ignoring case. Any other value is refused with `400 Bad Request`.
 * `sort` (optional, default `submitted`) - `submitted`, newest first by default, or `fileName`. With `order` (`asc` or `desc`); see [Listings](../api.md#listings).
 

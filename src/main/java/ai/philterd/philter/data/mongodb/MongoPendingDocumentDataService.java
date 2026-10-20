@@ -180,9 +180,12 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
     }
 
     @Override
-    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
-                                                     final int offset, final int limit) {
-        final Bson filter = MongoListings.all(Filters.eq("user_id", MongoIds.objectId(userId)), status == null ? null : Filters.eq("status", status));
+    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final String q,
+                                                     final Listings.Sort sort, final int offset, final int limit) {
+        final Bson search = q == null || q.isBlank() ? null
+                : Filters.or(MongoListings.contains("document_id", q), MongoListings.contains("file_name", q));
+        final Bson filter = MongoListings.all(Filters.eq("user_id", MongoIds.objectId(userId)),
+                status == null ? null : Filters.eq("status", status), search);
         final List<PendingDocumentEntity> items = new ArrayList<>();
         for (final Document document : jobs.find(filter)
                 .projection(Projections.exclude("input", "input_encrypted_key", "output",

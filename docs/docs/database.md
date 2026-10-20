@@ -81,8 +81,8 @@ settings, webhook delivery metadata and payloads, a pending document's submittin
 audit events, which hold it in the clear too), and the audit log. These hold no recoverable secret.
 
 > **File names are stored in the clear.** The file name sent with a redaction (the `filename` parameter) is kept
-> readable on its [ledger](redaction/ledgers.md) chain, so the Ledger API can search and sort by it, and on its
-> asynchronous job, so the Documents API can sort by it. An asynchronous job's [webhook](api_and_sdks/api/webhooks.md)
+> readable on its [ledger](redaction/ledgers.md) chain and on its asynchronous job, so the Ledger and Documents APIs can
+> search and sort by it. An asynchronous job's [webhook](api_and_sdks/api/webhooks.md)
 > payload also carries it, and queued delivery payloads are stored readably. Do not put sensitive values, such as a
 > person's name, in file names; use an identifier instead.
 

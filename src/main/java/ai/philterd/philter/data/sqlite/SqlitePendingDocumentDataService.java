@@ -192,15 +192,21 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
     }
 
     @Override
-    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
-                                                     final int offset, final int limit) {
+    public Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final String q,
+                                                     final Listings.Sort sort, final int offset, final int limit) {
         final List<Object> params = new ArrayList<>(List.of(userId));
         String state = null;
         if (status != null) {
             state = "status = ?";
             params.add(status);
         }
-        final String where = Sql.where("user_id = ?", state);
+        String search = null;
+        if (q != null && !q.isBlank()) {
+            final List<Object> searchParams = new ArrayList<>();
+            search = Sql.contains("document_id", q, searchParams) + " OR " + Sql.contains("file_name", q, searchParams);
+            params.addAll(searchParams);
+        }
+        final String where = Sql.where("user_id = ?", state, search);
         return database.read(connection -> Sql.page(connection, "pending_documents", where, params, sort, offset, limit,
                 row -> read(row, false)));
     }

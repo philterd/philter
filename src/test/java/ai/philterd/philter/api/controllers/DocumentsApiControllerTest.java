@@ -121,13 +121,26 @@ class DocumentsApiControllerTest {
 
     @Test
     void listDocumentsQueriesByOwningUserId() throws Exception {
-        when(pendingDocumentDataService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+        when(pendingDocumentDataService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
                 .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER))
                 .andExpect(status().isOk());
 
-        verify(pendingDocumentDataService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true)), eq(0), eq(25));
+        verify(pendingDocumentDataService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true)), eq(0), eq(25));
+    }
+
+    @Test
+    void listDocumentsPassesTheSearchThrough() throws Exception {
+        when(pendingDocumentDataService.list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq("claim-42"),
+                org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+                .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
+
+        mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER).param("q", "claim-42"))
+                .andExpect(status().isOk());
+
+        verify(pendingDocumentDataService).list(eq(userId), org.mockito.ArgumentMatchers.isNull(), eq("claim-42"),
+                org.mockito.ArgumentMatchers.any(), eq(0), eq(25));
     }
 
     @Test
@@ -136,7 +149,7 @@ class DocumentsApiControllerTest {
         failed.setDocumentId("doc-failed");
         failed.setFileName("claim.pdf");
         failed.setStatus(PendingDocumentEntity.STATUS_FAILED);
-        when(pendingDocumentDataService.list(eq(userId), eq("FAILED"), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+        when(pendingDocumentDataService.list(eq(userId), eq("FAILED"), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
                 .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(List.of(failed), 4));
 
         final String body = mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
@@ -145,7 +158,7 @@ class DocumentsApiControllerTest {
 
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("\"total\":4"), body);
         org.junit.jupiter.api.Assertions.assertTrue(body.startsWith("{\"documents\":[{\"type\":\"redaction\",\"fileName\":\"claim.pdf\""), body);
-        verify(pendingDocumentDataService).list(eq(userId), eq("FAILED"), eq(new ai.philterd.philter.data.services.Listings.Sort("file_name", false)), eq(0), eq(25));
+        verify(pendingDocumentDataService).list(eq(userId), eq("FAILED"), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("file_name", false)), eq(0), eq(25));
 
         mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER).param("status", "lost"))
                 .andExpect(status().isBadRequest());
@@ -213,14 +226,14 @@ class DocumentsApiControllerTest {
         owner.setId(otherUser);
         owner.setEmail("other@example.com");
         when(userService.findAnyByUsername("other@example.com")).thenReturn(owner);
-        when(pendingDocumentDataService.list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
+        when(pendingDocumentDataService.list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any(), eq(0), eq(25)))
                 .thenReturn(new ai.philterd.philter.data.services.Listings.Page<>(Collections.emptyList(), 0));
 
         mockMvc.perform(get("/api/documents").header("Authorization", AUTH_HEADER)
                         .param("owner", "other@example.com"))
                 .andExpect(status().isOk());
 
-        verify(pendingDocumentDataService).list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true)), eq(0), eq(25));
+        verify(pendingDocumentDataService).list(eq(otherUser), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), eq(new ai.philterd.philter.data.services.Listings.Sort("submitted_at", true)), eq(0), eq(25));
     }
 
     @Test

@@ -53,10 +53,11 @@ public interface PendingDocumentDataService {
 
     /**
      * A page of the user's queued documents, with the given status when one is given, and their total.
+     * With {@code q}, only documents whose document ID or file name contains it, ignoring case.
      * The documents themselves are left out: a listing has no use for them, and they are large.
      */
-    Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final Listings.Sort sort,
-            final int offset, final int limit);
+    Listings.Page<PendingDocumentEntity> list(final String userId, final String status, final String q,
+            final Listings.Sort sort, final int offset, final int limit);
 
     PendingDocumentEntity claimNextPending(final String workerId);
 

@@ -1,13 +1,13 @@
 # Philter
 
 > [!NOTE]
-> The `main` branch is currently for Philter 4.0.0 development. For 3.x, refer to the tags. The latest of which is `3.4.0`.
+> Philter 4.0 is API-only, with no built-in user interface. See [Upgrading](docs/docs/upgrading.md) to move from 3.x, whose latest release is `3.4.2`.
 
 Philter is an API-based application to identify and manipulate (redact, anonymize, and more) PII, PHI, and other sensitive information.
 
 Philter is built upon the open source PII and PHI redaction engine [Phileas](https://github.com/philterd/phileas). Philter provides an API on top of Phileas that allows for redaction and management of filtering policies.
 
-Philter was released as open source under the Apache License, version 2.0, in July 2024 for version 2.6.0, but Philter dates back to 2019. See the [Release Notes](https://github.com/philterd/philter/blob/main/RELEASE_NOTES.md) for a description of past versions.
+Philter was released as open source under the Apache License, version 2.0, in July 2024 for version 2.6.0, but Philter dates back to 2019. See the [Changelog](CHANGELOG.md) for 4.0.0 and later, and the [Release Notes](https://github.com/philterd/philter/blob/main/RELEASE_NOTES.md) for earlier versions.
 
 For Philter's User Guide please see https://philterd.github.io/philter/.
 
@@ -86,7 +86,7 @@ Philter uses a built-in in-memory cache by default and can be configured to use 
 Released versions are published to Docker Hub as [`philterd/philter`](https://hub.docker.com/r/philterd/philter/tags), tagged by version. There is no `latest` tag, so name the version you want:
 
 ```
-docker pull philterd/philter:3.4.0
+docker pull philterd/philter:4.0.0
 ```
 
 The `docker-compose.yml` in this repository builds the image from source instead, so it runs the code on your current branch.

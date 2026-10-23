@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is the source of truth for 4.0.0 and later: record every release entry here.
 [RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
-## [4.0.0] - Unreleased
+## [4.0.0] - 2026-10-23
 
 Major release, the first since 3.4.0. Philter is now API-only and runs on Java 25, Spring Boot 4, and
 Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.

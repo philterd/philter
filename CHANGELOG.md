@@ -96,6 +96,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **Every date has a confidence of 0.75.** Dates such as `3/27/1965` and `3/1965` had a confidence of 75, so a
+  date strategy with a condition such as `confidence > 0.9` redacted them but not `03/27/1965`. It now treats them
+  all alike.
 - **A quantity after a month and day is no longer redacted as a year.** In `Dose: Mar 3 - 2000 mg daily.`, only
   `Mar 3` is redacted: a number set apart from a date's day by three or more characters is taken as the year only
   from 1800 to 2100 and when no unit such as `mg` or `units` follows it. See [Dates](docs/docs/policies/filters/common_filters/dates.md).

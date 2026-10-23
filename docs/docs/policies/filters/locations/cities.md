@@ -18,6 +18,12 @@ This filter has no required parameters.
 | `terms` | A list of terms to detect in place of the list bundled with Philter. When given, only these terms are detected and the bundled list is not used; an empty list uses the bundled list. They are matched the way `fuzzy` says: exactly, ignoring case, or fuzzily. | None (the bundled list) |
 | `capitalized` | When set to true, a match is reported only when its first letter is uppercase, so a term that is also an ordinary word is not reported when written in lowercase. Applies only when `fuzzy` is set to `true`; with exact matching it has no effect, and a match is reported whatever its case. | `false` |
 
+### Cities That Are Common Words
+
+About 1,300 names in the bundled list are also common English words, such as `Call`, `Driver`, `Hope`, `Center`, `Phoenix`, and `Mobile`. One of these is reported as a city only when it begins with a capital letter and either follows `in`, `from`, `to`, `near`, `outside`, `toward`, `towards`, or `via` (`Born in Phoenix.`), or is followed by a comma and a state name or two-letter state abbreviation (`Mobile, Alabama`, `Reading, PA`). So `Call the clinic with questions.` and `She lives on Oak Street in Austin.` report only `Austin`. Other names in the list are reported wherever they appear. The rule does not apply to `terms`.
+
+Such a city written without that context, as in `Phoenix is hot this summer.` or `lives in phoenix`, is not reported. To find it wherever it appears, list the cities you need in `terms`. A capitalized common word after a location word, as in a title such as `Welcome to Paradise`, is reported; list such words in `ignored`.
+
 ### Filter Strategies
 
 The filter may have zero or more filter strategies. When no filter strategy is given the default strategy of `REDACT` is used. When multiple filter strategies are given, they are evaluated in the order listed and only the first one whose condition is satisfied, or that has no condition, is applied. See [Filter Strategies](../../filter_strategies.md) for details.

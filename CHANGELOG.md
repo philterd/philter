@@ -96,26 +96,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
-- **Every date has a confidence of 0.75.** Dates such as `3/27/1965` and `3/1965` had a confidence of 75, so a
-  date strategy with a condition such as `confidence > 0.9` redacted them but not `03/27/1965`. It now treats them
-  all alike.
-- **A quantity after a month and day is no longer redacted as a year.** In `Dose: Mar 3 - 2000 mg daily.`, only
-  `Mar 3` is redacted: a number set apart from a date's day by three or more characters is taken as the year only
-  from 1800 to 2100 and when no unit such as `mg` or `units` follows it. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
-- **Date strategies transform day-first dates and two-digit years.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
-  transform day-first numeric dates such as `25/12/1980`, which were redacted, and read a two-digit year as the most
-  recent year ending in those digits that is not after the current year, so `RELATIVE` describes `3/27/65` as about
-  61 years ago rather than about 1,961. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
-- **Dates abbreviated `Sept` are detected.** `Sept 3, 2020`, `3 Sept 2020`, and other dates using the `Sept`
-  abbreviation were left in the output; they are now redacted, and the date strategies transform them.
-- **Date strategies transform dates written with a month name.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
-  transform dates such as `March 27, 1965`, `Mar 27, 1965`, `March 27th, 1965`, and `27-Mar-1965`, which previously
-  fell back to redaction, and `SHIFT` keeps the original's form. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
-- **A redacted PDF page keeps the input page's size.** Previously Phileas multiplied a redacted page's size by
-  the policy's `config.pdf.scale`, whose default of `0.25` returned each redacted page at a quarter of its width and
-  height, and with `preserveUnredactedPages` a document mixed small redacted pages with full-size copied ones.
-  `config.pdf.scale` is now deprecated and ignored; a policy that sets it still loads. `config.pdf.dpi` still sets
-  the rendered image's resolution. See [Policy Schema](docs/docs/policies/policy_schema.md).
+- **Detection and redaction changes from Phileas 4.5.0,** including how dates, cities, and driver's license
+  numbers are detected and how the date strategies transform dates. See the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
+- **`config.pdf.scale` is deprecated and ignored.** A redacted PDF page now keeps the input page's size, where the
+  default scale of `0.25` returned it at a quarter of its width and height. A policy that sets it still loads.
 - **A PhEye service that cannot be reached is reported as `503`** with a message saying how to fix the policy
   or the deployment, and an asynchronous document fails with the same message. Previously the request failed
   with `500` and `An unknown error has occurred.`

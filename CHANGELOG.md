@@ -96,6 +96,8 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **Dates abbreviated `Sept` are detected.** `Sept 3, 2020`, `3 Sept 2020`, and other dates using the `Sept`
+  abbreviation were left in the output; they are now redacted, and the date strategies transform them.
 - **Date strategies transform dates written with a month name.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
   transform dates such as `March 27, 1965`, `Mar 27, 1965`, `March 27th, 1965`, and `27-Mar-1965`, which previously
   fell back to redaction, and `SHIFT` keeps the original's form. See [Dates](docs/docs/policies/filters/common_filters/dates.md).

@@ -12,6 +12,10 @@ API key comes from `PHILTER_BOOTSTRAP_API_KEY`, and users, API keys, settings, p
 log are managed with the endpoints in the [API reference](docs/docs/api_and_sdks/api.md). [Philter UI](https://github.com/philterd/philter-ui), a
 separate web application in development, is being built to sign people in through Philter with their own username and password.
 
+## Version 4.0.0 - October 23, 2026
+
+This version uses Phileas 4.5.0. See the [4.0.0 entry in CHANGELOG.md](CHANGELOG.md#400---2026-10-23) for the changes.
+
 ## Version 2.5.0 - July 6, 2024
 
 This version uses Phileas 2.6.0.

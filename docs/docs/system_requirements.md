@@ -5,7 +5,7 @@ When launched from a cloud marketplace, Philter is pre-configured and contains a
 Philter requires the following:
 
 * 2 vCPU (e.g., m5.large instance type on AWS)
-* 8 GB of RAM (16 GB recommended)
+* 8 GB of RAM
 * Java 25
 * Storage: nothing to install for SQLite, the default, which keeps Philter's data in a file for a single instance; or MongoDB, which several instances can share (see [Database](database.md#supported-mongodb-versions) for the version to use)
 * Valkey (optional; if not configured, Philter uses an in-memory cache that is not shared across instances and is lost on restart)

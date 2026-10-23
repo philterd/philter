@@ -142,6 +142,30 @@ class OpenApiExportIT {
             assertTrue(filtering.getAsJsonObject("responses").getAsJsonObject("202").getAsJsonObject("content").has("application/json"));
             assertTrue(schemas.getAsJsonObject("GetRedactionStatusResponse").getAsJsonObject("properties").has("effectiveConfigurationHash"));
             assertTrue(schemas.getAsJsonObject("LedgerEntryView").getAsJsonObject("properties").has("effectiveHash"));
+            assertTrue(schemas.getAsJsonObject("OwnedLegalHoldResponse").getAsJsonObject("properties").has("owner"));
+            assertEquals("{\"$ref\":\"#/components/schemas/OwnedLegalHoldResponse\"}", schemas.getAsJsonObject("GetHoldsResponse")
+                    .getAsJsonObject("properties").getAsJsonObject("holds").getAsJsonObject("items").toString());
+            assertTrue(paths.getAsJsonObject("/api/policies/{policyName}/diff").getAsJsonObject("get").getAsJsonObject("responses")
+                    .getAsJsonObject("200").getAsJsonObject("content").getAsJsonObject("application/json").getAsJsonObject("schema")
+                    .getAsJsonObject("properties").getAsJsonObject("changes").getAsJsonObject("items")
+                    .getAsJsonObject("properties").has("oldValue"));
+            // Headers Philter sends, so a generated client reads them.
+            paths.entrySet().forEach(path -> path.getValue().getAsJsonObject().entrySet().stream()
+                    .filter(operation -> java.util.Set.of("get", "post", "put", "delete", "patch").contains(operation.getKey()))
+                    .forEach(operation -> operation.getValue().getAsJsonObject().getAsJsonObject("responses").entrySet()
+                            .forEach(answer -> {
+                                final JsonObject headers = answer.getValue().getAsJsonObject().getAsJsonObject("headers");
+                                assertTrue(headers != null && headers.has("X-Request-Id"),
+                                        "X-Request-Id: " + operation.getKey() + " " + path.getKey() + " " + answer.getKey());
+                            })));
+            for (String[] sent : new String[][]{{"/api/filter", "post", "200", "X-Philter-Signature"},
+                    {"/api/explain", "post", "200", "X-Philter-Signature"}, {"/api/explain", "post", "200", "X-Document-Id"},
+                    {"/api/policies/{policyName}", "get", "200", "ETag"}, {"/api/audit/export", "get", "200", "X-Philter-Export-Truncated"},
+                    {"/api/sign-in", "post", "429", "Retry-After"}, {"/api/users/{username}/role", "put", "409", "Retry-After"}}) {
+                assertTrue(paths.getAsJsonObject(sent[0]).getAsJsonObject(sent[1]).getAsJsonObject("responses")
+                        .getAsJsonObject(sent[2]).getAsJsonObject("headers").has(sent[3]), String.join(" ", sent));
+            }
+            assertOneOfsDistinct(specification, schemas);
 
             // Make the published artifact reproducible: identical code must produce a byte-identical
             // spec so the committed file only changes when the API actually changes. Two sources of
@@ -180,6 +204,38 @@ class OpenApiExportIT {
 
         }
 
+    }
+
+    /**
+     * Every oneOf alternative must require a property no other alternative defines. Without that, a response
+     * matches more than one alternative, which a validator rejects, and a generated client cannot tell them apart.
+     */
+    private static void assertOneOfsDistinct(final JsonElement element, final JsonObject schemas) {
+        if (element.isJsonArray()) {
+            element.getAsJsonArray().forEach(item -> assertOneOfsDistinct(item, schemas));
+            return;
+        }
+        if (!element.isJsonObject()) {
+            return;
+        }
+        final JsonObject object = element.getAsJsonObject();
+        if (object.has("oneOf")) {
+            final List<JsonObject> alternatives = new java.util.ArrayList<>();
+            object.getAsJsonArray("oneOf").forEach(alternative -> {
+                final JsonObject schema = alternative.getAsJsonObject();
+                alternatives.add(schema.has("$ref")
+                        ? schemas.getAsJsonObject(schema.get("$ref").getAsString().replace("#/components/schemas/", ""))
+                        : schema);
+            });
+            for (final JsonObject alternative : alternatives) {
+                final boolean distinct = alternative.has("required") && alternative.getAsJsonArray("required").asList().stream()
+                        .map(JsonElement::getAsString)
+                        .anyMatch(name -> alternatives.stream().filter(other -> other != alternative)
+                                .noneMatch(other -> other.has("properties") && other.getAsJsonObject("properties").has(name)));
+                assertTrue(distinct, "A oneOf alternative requires no property the others lack: " + object);
+            }
+        }
+        object.entrySet().forEach(entry -> assertOneOfsDistinct(entry.getValue(), schemas));
     }
 
     /**

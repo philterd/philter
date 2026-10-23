@@ -15,6 +15,9 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
@@ -31,6 +34,8 @@ public class GetLedgerResponse {
         this.total = total;
     }
 
+    @ArraySchema(arraySchema = @Schema(description = "The chain heads on this page. With all_users, each also names its owner."),
+            schema = @Schema(implementation = OwnedLedgerEntryView.class))
     public List<LedgerEntryView> getChains() {
         return chains;
     }

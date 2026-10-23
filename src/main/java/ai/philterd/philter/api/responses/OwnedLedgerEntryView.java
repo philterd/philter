@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
 /** A ledger chain head and the username of the user it belongs to, as listed with {@code all_users}. */
@@ -35,6 +37,7 @@ public class OwnedLedgerEntryView extends LedgerEntryView {
         this.owner = owner;
     }
 
+    @Schema(description = "The username of the user the chain belongs to. Present only in an all_users listing.")
     public String getOwner() { return owner; }
 
 }

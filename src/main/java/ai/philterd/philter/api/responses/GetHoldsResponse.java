@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -30,7 +31,8 @@ public class GetHoldsResponse {
         this.total = total;
     }
 
-    @Schema(description = "The holds on this page.")
+    @ArraySchema(arraySchema = @Schema(description = "The holds on this page. With all_users, each also names its owner."),
+            schema = @Schema(implementation = OwnedLegalHoldResponse.class))
     public List<? extends LegalHoldResponse> getHolds() { return holds; }
 
     @Schema(description = "How many holds the listing has across every page.")

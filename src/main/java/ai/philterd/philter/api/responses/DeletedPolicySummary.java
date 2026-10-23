@@ -34,10 +34,10 @@ public class DeletedPolicySummary {
         this.deletedBy = deletedBy;
     }
 
-    @Schema(description = "The policy's name. Read its history with GET /api/policies/{policyName}/versions.")
+    @Schema(description = "The policy's name. Read its history with GET /api/policies/{policyName}/versions.", requiredMode = Schema.RequiredMode.REQUIRED)
     public String getName() { return name; }
 
-    @Schema(description = "The most recent retained revision.")
+    @Schema(description = "The most recent retained revision.", requiredMode = Schema.RequiredMode.REQUIRED)
     public int getLatestRevision() { return latestRevision; }
 
     @Schema(description = "When the policy was deleted, or null for a policy deleted before Philter recorded deletions.")

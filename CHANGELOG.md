@@ -119,7 +119,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   See [Long Text](docs/docs/policies/filters/persons_names/persons-names-ner.md#long-text).
 - **The OpenAPI specification matches the responses.** The `/api/explain` explanation and its spans, and the signing
   key's `jwk`, have schemas; the audit export is described as CSV text; and responses that have no body, or a
-  `{message}` body, are described as such.
+  `{message}` body, are described as such. The policy diff's `oldValue`, the hold listing's `owner`, and the headers
+  Philter sends (`X-Request-Id` on every response, `X-Philter-Signature`, `X-Document-Id` on `/api/explain`, `ETag`,
+  the audit export headers, and `Retry-After` on throttled sign-ins and password checks and on refused administrator
+  changes) are declared. The policy listing's and sign-in's alternative responses are told apart by their required
+  fields, and the hold and ledger listings each describe one item schema with an optional `owner`.
 - **Java 25 is required.**
 - **No built-in UI.** [Philter UI](https://github.com/philterd/philter-ui), in development, is separate.
 - **PDF redaction is asynchronous by default.** Append `?async=false` for the previous behavior.

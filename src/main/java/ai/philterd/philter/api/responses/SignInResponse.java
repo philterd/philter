@@ -48,7 +48,7 @@ public class SignInResponse {
     @Schema(description = "The session key's id, as GET /api/api-keys lists it, so a client can recognize its own key.")
     public String getId() { return id; }
 
-    @Schema(description = "The session key. Send it as a bearer token. It is returned here and nowhere else.")
+    @Schema(description = "The session key. Send it as a bearer token. It is returned here and nowhere else.", requiredMode = Schema.RequiredMode.REQUIRED)
     public String getApiKey() { return apiKey; }
 
     public String getUsername() { return username; }

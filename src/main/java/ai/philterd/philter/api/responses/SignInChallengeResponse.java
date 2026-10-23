@@ -34,7 +34,7 @@ public class SignInChallengeResponse {
     @Schema(description = "Always true: send the challenge and a code to POST /api/sign-in/mfa.")
     public boolean isMfaRequired() { return mfaRequired; }
 
-    @Schema(description = "Single-use. Any attempt with it, right or wrong, uses it up.")
+    @Schema(description = "Single-use. Any attempt with it, right or wrong, uses it up.", requiredMode = Schema.RequiredMode.REQUIRED)
     public String getChallenge() { return challenge; }
 
     public Date getChallengeExpiresAt() { return challengeExpiresAt; }

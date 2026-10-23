@@ -1,5 +1,7 @@
 package ai.philterd.philter.config;
 
+import ai.philterd.philter.api.controllers.AbstractApiController;
+import ai.philterd.philter.api.controllers.AuditApiController;
 import ai.philterd.philter.api.responses.*;
 import ai.philterd.philter.api.requests.RedactListRequest;
 import ai.philterd.philter.api.requests.RedactListsRequest;
@@ -16,6 +18,9 @@ import org.springframework.context.annotation.Configuration;
 /** Describes JSON serialized through Gson and the media variants merged into POST /api/filter. */
 @Configuration
 public class ApiDocumentationConfig {
+    private static final String SIGNATURE = ai.philterd.philter.services.signing.SigningService.SIGNATURE_HEADER;
+    private static final String SIGNED = "An ES256 JWT binding the SHA-256 hash of the response body. Present when output signing is enabled or the request asked for it with sign=true; verify it with GET /api/signing-key.";
+
     @Bean
     public OpenApiCustomizer apiWireContracts() {
         return api -> {
@@ -36,10 +41,7 @@ public class ApiDocumentationConfig {
             json(api, "/api/documents", "get", GetDocumentsResponse.class);
             json(api, "/api/documents/{documentId}/status", "get", GetRedactionStatusResponse.class);
             response(op(api, "/api/ledger", "get"), "200", "Ledger chain heads; with all_users, each also names its owner.",
-                    content("application/json", new ComposedSchema().oneOf(java.util.List.of(
-                            model(api, GetLedgerResponse.class),
-                            object("chains", new ArraySchema().items(model(api, OwnedLedgerEntryView.class)),
-                                    "total", new IntegerSchema())))));
+                    content("application/json", model(api, GetLedgerResponse.class)));
             json(api, "/api/ledger/{documentId}", "get", LedgerChainResponse.class);
             json(api, "/api/ledger/{documentId}/valid", "get", LedgerChainResponse.class);
             json(api, "/api/ledger/{documentId}/export", "get", LedgerExport.class);
@@ -62,7 +64,8 @@ public class ApiDocumentationConfig {
             response(op(api, "/api/policies/templates/{templateName}", "get"), "200", "The template's native policy JSON.",
                     content("application/json", new ObjectSchema().additionalProperties(true)));
             Schema<?> change = object("op", new StringSchema()._enum(java.util.List.of("add", "remove", "replace")),
-                    "path", new StringSchema(), "value", new Schema<>());
+                    "path", new StringSchema(), "value", new Schema<>(),
+                    "oldValue", new Schema<>().description("The value before the change. Present on replace and remove."));
             response(op(api, "/api/policies/{policyName}/diff", "get"), "200", "Revision diff; value is omitted for removals.",
                     content("application/json", object("from", new IntegerSchema(), "to", new IntegerSchema(),
                             "changes", new ArraySchema().items(change))));
@@ -95,6 +98,9 @@ public class ApiDocumentationConfig {
                                     "identifiedSpans", new ArraySchema().items(spanRef)),
                             "tokens", new IntegerSchema(), "policyName", new StringSchema(),
                             "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema())));
+            final Operation explain = op(api, "/api/explain", "post");
+            headers(explain, "200", ai.philterd.philter.api.controllers.FilterApiController.DOCUMENT_ID_HEADER);
+            header(explain, "200", SIGNATURE, SIGNED);
             // CSV text, not a JSON object.
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
@@ -121,6 +127,7 @@ public class ApiDocumentationConfig {
                 headers(filter, status, "X-Philter-Policy-Name", "X-Philter-Policy-Version", "X-Philter-Policy-Hash");
             }
             headers(filter, "200", ai.philterd.philter.api.controllers.FilterApiController.DOCUMENT_ID_HEADER);
+            header(filter, "200", SIGNATURE, SIGNED + " Only text responses are signed.");
             headers(filter, "202", "Location", "X-Effective-Configuration-SHA256");
             retry(filter, "429", "Account async queue capacity reached.");
             retry(filter, "503", "Global queue capacity reached, admission contention wait (500 ms) exhausted, or recovery required.");
@@ -132,12 +139,40 @@ public class ApiDocumentationConfig {
             for (String path : new String[]{"/api/ledger/{documentId}/export", "/api/contexts/{name}/entries/export"}) {
                 headers(op(api, path, "get"), "200", "Content-Disposition");
             }
+            final Operation auditExport = op(api, "/api/audit/export", "get");
+            headers(auditExport, "200", "Content-Disposition");
+            header(auditExport, "200", AuditApiController.EXPORT_ROWS_HEADER, "How many events the export holds.");
+            header(auditExport, "200", AuditApiController.EXPORT_TRUNCATED_HEADER, "Whether the row cap cut the export short.");
+            header(auditExport, "200", AuditApiController.EXPORT_TIME_ZONE_HEADER, "The time zone the from and to dates were read in.");
+            header(auditExport, "200", AuditApiController.EXPORT_NEXT_CURSOR_HEADER, "The cursor of the next page. Present only when the export was truncated.");
+            header(auditExport, "200", AuditApiController.EXPORT_NEXT_OFFSET_HEADER, "The offset of the next page. Present only when an export read by offset was truncated.");
+            // The revision a later If-Match names.
+            for (String[] tagged : new String[][]{{"/api/policies", "post", "201"}, {"/api/policies/{policyName}", "get", "200"},
+                    {"/api/policies/{policyName}", "put", "200"}, {"/api/policies/{policyName}/details", "get", "200"},
+                    {"/api/policies/{policyName}/details", "put", "200"}, {"/api/policies/{policyName}/copy", "post", "201"},
+                    {"/api/policies/{policyName}/rollback", "post", "201"}, {"/api/redact-lists/{list}", "get", "200"},
+                    {"/api/redact-lists/{list}", "put", "200"}}) {
+                headers(op(api, tagged[0], tagged[1]), tagged[2], "ETag");
+            }
+            for (String[] throttled : new String[][]{{"/api/sign-in", "post"}, {"/api/sign-in/mfa", "post"},
+                    {"/api/users/me/password", "put"}, {"/api/users/me/mfa", "post"}}) {
+                retryAfter(op(api, throttled[0], throttled[1]), "429", "Seconds to wait before retrying.");
+            }
+            for (String[] guarded : new String[][]{{"/api/users/{username}/role", "put"}, {"/api/users/{username}/deactivate", "post"}}) {
+                retryAfter(op(api, guarded[0], guarded[1]), "409",
+                        "Seconds to wait before retrying. Present only with reason admin_change_in_progress.");
+            }
+            api.getComponents().addHeaders(AbstractApiController.REQUEST_ID_HEADER, new Header().schema(new StringSchema())
+                    .description("The id Philter gives the request. The audit events the request causes carry it as request_id."));
+            final Header requestId = new Header().$ref("#/components/headers/" + AbstractApiController.REQUEST_ID_HEADER);
             // These statuses belong to the shared request boundary, not individual handler return types.
             api.getPaths().forEach((path, item) -> item.readOperations().forEach(operation -> {
                 if (operation.getDescription() != null && operation.getDescription().contains("Requires the `")) {
                     operation.getResponses().putIfAbsent("403", new ApiResponse().description("Insufficient scope, disabled API, or access denied."));
                 }
                 operation.getResponses().putIfAbsent("406", new ApiResponse().description("No representation matches Accept."));
+                // Set on every /api response, refusals included, before anything can answer the request.
+                operation.getResponses().values().forEach(response -> response.addHeaderObject(AbstractApiController.REQUEST_ID_HEADER, requestId));
                 // Servlet request attributes are server-assigned, never client-supplied parameters.
                 if (operation.getParameters() != null) operation.getParameters().removeIf(p -> "requestId".equals(p.getName()));
             }));
@@ -168,6 +203,14 @@ public class ApiDocumentationConfig {
     }
     private static void headers(Operation operation, String status, String... names) {
         for (String name : names) operation.getResponses().get(status).addHeaderObject(name, new Header().schema(new StringSchema()));
+    }
+    private static void header(Operation operation, String status, String name, String description) {
+        operation.getResponses().get(status).addHeaderObject(name, new Header().description(description).schema(new StringSchema()));
+    }
+    /** Declares Retry-After on a response whose description and body are already documented. */
+    private static void retryAfter(Operation operation, String status, String description) {
+        operation.getResponses().get(status).addHeaderObject("Retry-After", new Header()
+                .description(description).schema(new IntegerSchema()));
     }
     private static void retry(Operation operation, String status, String description) {
         operation.getResponses().addApiResponse(status, new ApiResponse().description(description)

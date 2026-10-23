@@ -40,13 +40,13 @@ public class PolicySummary {
         this.owner = owner;
     }
 
-    @Schema(description = "The policy's name. A managed policy's begins with managed_.")
+    @Schema(description = "The policy's name. A managed policy's begins with managed_.", requiredMode = Schema.RequiredMode.REQUIRED)
     public String getName() { return name; }
 
     @Schema(description = "The policy's description, or an empty string if it has none.")
     public String getDescription() { return description; }
 
-    @Schema(description = "The policy's current revision.")
+    @Schema(description = "The policy's current revision.", requiredMode = Schema.RequiredMode.REQUIRED)
     public int getRevision() { return revision; }
 
     @Schema(description = "When the policy was created.")

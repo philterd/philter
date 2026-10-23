@@ -96,6 +96,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **A quantity after a month and day is no longer redacted as a year.** In `Dose: Mar 3 - 2000 mg daily.`, only
+  `Mar 3` is redacted: a number set apart from a date's day by three or more characters is taken as the year only
+  from 1800 to 2100 and when no unit such as `mg` or `units` follows it. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
 - **Date strategies transform day-first dates and two-digit years.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
   transform day-first numeric dates such as `25/12/1980`, which were redacted, and read a two-digit year as the most
   recent year ending in those digits that is not after the current year, so `RELATIVE` describes `3/27/65` as about

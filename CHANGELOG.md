@@ -96,6 +96,9 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **Date strategies transform dates written with a month name.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
+  transform dates such as `March 27, 1965`, `Mar 27, 1965`, `March 27th, 1965`, and `27-Mar-1965`, which previously
+  fell back to redaction, and `SHIFT` keeps the original's form. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
 - **A redacted PDF page keeps the input page's size.** Previously Phileas multiplied a redacted page's size by
   the policy's `config.pdf.scale`, whose default of `0.25` returned each redacted page at a quarter of its width and
   height, and with `preserveUnredactedPages` a document mixed small redacted pages with full-size copied ones.

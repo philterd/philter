@@ -42,7 +42,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | `SHIFT`               | Shift the date by a number of months, days, and/or years, or by a random amount with `shiftRandom`. |
 | `RELATIVE`            | Replace the date by a words relative to the date.             |
 
-`TRUNCATE_TO_YEAR` and `SHIFT` fall back to `REDACT` when the date cannot be parsed.
+`TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` transform numeric month-first dates (`03/27/1965`, `1965-03-27`) and dates with a month name, a day, and a four-digit year in either order (`March 27, 1965`, `Mar. 5th 2020`, `27-Mar-1965`). `SHIFT` writes a month-name date in the original's form, so `March 27th, 1965` shifted by 10 days and 1 year becomes `April 6th, 1966`. A month and year with no day (`March 1965`) is transformed by `TRUNCATE_TO_YEAR` and `RELATIVE` and redacted by `SHIFT`. Any other date, such as one with a two-digit year (`March 27th, 65`), a day-first numeric date (`25/12/1980`), or an invalid date (`February 30, 2020`), falls back to `REDACT`.
 
 ### Filter Strategy Options
 

@@ -96,6 +96,11 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **A redacted PDF page keeps the input page's size.** Previously Phileas multiplied a redacted page's size by
+  the policy's `config.pdf.scale`, whose default of `0.25` returned each redacted page at a quarter of its width and
+  height, and with `preserveUnredactedPages` a document mixed small redacted pages with full-size copied ones.
+  `config.pdf.scale` is now deprecated and ignored; a policy that sets it still loads. `config.pdf.dpi` still sets
+  the rendered image's resolution. See [Policy Schema](docs/docs/policies/policy_schema.md).
 - **A PhEye service that cannot be reached is reported as `503`** with a message saying how to fix the policy
   or the deployment, and an asynchronous document fails with the same message. Previously the request failed
   with `500` and `An unknown error has occurred.`

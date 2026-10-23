@@ -65,8 +65,8 @@ Global configuration settings.
 | `replacementFont` | string | `helvetica` | Font for replacement text. |
 | `replacementMaxFontSize` | number | `12` | Maximum font size for replacement text. |
 | `replacementFontColor` | string | | Color of replacement text. |
-| `scale` | number | `0.25` | Scale factor for PDF rendering. |
-| `dpi` | integer | `150` | DPI for PDF rendering. |
+| `scale` | number | `0.25` | Deprecated and ignored as of Philter 4.0: a redacted page keeps the input page's size. Earlier versions multiplied a redacted page's size by it, so the default shrank pages to a quarter of their width and height. |
+| `dpi` | integer | `150` | Resolution of the image a redacted page is rendered to. It sets the image's detail and the output's file size, not the page size. |
 | `compressionQuality` | number (0.0–1.0) | `1.0` | JPEG compression quality for PDF output. |
 | `preserveUnredactedPages` | boolean | `false` | Keep pages with no redactions in their original form. |
 

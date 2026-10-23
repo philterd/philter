@@ -3,7 +3,7 @@
 > [!NOTE]
 > Philter 4.0 is API-only, with no built-in user interface. See [Upgrading](docs/docs/upgrading.md) to move from 3.x, whose latest release is `3.4.2`.
 
-Philter is an API-based application to identify and manipulate (redact, anonymize, and more) PII, PHI, and other sensitive information.
+Philter is an API-based application to identify and manipulate (redact, pseudonymize, and more) PII, PHI, and other sensitive information.
 
 Philter is built upon the open source PII and PHI redaction engine [Phileas](https://github.com/philterd/phileas). Philter provides an API on top of Phileas that allows for redaction and management of filtering policies.
 

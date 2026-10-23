@@ -80,3 +80,137 @@ To detect only your own list of terms, give them in `terms`. With `fuzzy` set to
    }
 }
 ```
+
+## Detecting Hospitals with a Model
+
+The filter above detects the hospitals in its bundled list, or in your `terms`. To detect hospital names that are not in a list, run [`knowledgator/gliner-pii-base-v1.0`](https://huggingface.co/knowledgator/gliner-pii-base-v1.0) inside Philter as a [`pheyes`](../persons_names/persons-names-ner.md) entry, with no PhEye service. It is a third-party GLiNER model, licensed Apache-2.0 by Knowledgator, and is not trained by Philterd. It is not included in the Philter image: its files are about 670 MB. Its detection is probabilistic, so validate its output against your own data.
+
+### Download the Model
+
+Download the three files Philter reads, pinned to a revision, and check them. Run this in the directory that holds your `docker-compose.yml`; on macOS, use `shasum -a 256 -c` in place of `sha256sum -c`.
+
+```
+mkdir -p gliner-pii-base/onnx && cd gliner-pii-base
+REV=61726e0ad791dcab3e29339bbec3ad42ded65641
+for f in gliner_config.json tokenizer.json onnx/model.onnx; do
+  curl -fL -o "$f" "https://huggingface.co/knowledgator/gliner-pii-base-v1.0/resolve/$REV/$f"
+done
+sha256sum -c <<'SUMS'
+e33d3da38e0d369fa7574668d3798ca6c7d2b23cba7d628507112eeb426aaccb  gliner_config.json
+ee028763434d18611c1c36356ea1d050e90a9fa94ede57fac48b39f85f818ad1  tokenizer.json
+c6ccec44625d46bfe3191152e41d6564b69bc9d4313b7f3e419e8372679e9fed  onnx/model.onnx
+SUMS
+cd ..
+```
+
+### Mount the Model
+
+Mount the directory, read-only, as a subdirectory of `PHEYE_MODELS_DIRECTORY` (default `/opt/philter/models`). Its name is the model's name. Mount the subdirectory rather than the whole models directory, so the `ph-eye-pii-en-small` model the image includes stays available:
+
+```yaml
+services:
+  philter:
+    volumes:
+      - ./gliner-pii-base:/opt/philter/models/gliner-pii-base:ro
+```
+
+[`GET /api/models`](../../../api_and_sdks/api/models_api.md) then lists `gliner-pii-base`, with a `maxLength` of 2048.
+
+### Example Policy
+
+```json
+{
+  "identifiers": {
+    "pheyes": [
+      {
+        "phEyeConfiguration": {
+          "modelPath": "gliner-pii-base",
+          "labels": ["hospital"]
+        },
+        "phEyeFilterStrategies": [
+          { "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+With this policy, the text
+
+```
+The patient was transferred from Mercy Hospital to Riverside General on Monday.
+```
+
+is redacted to
+
+```
+The patient was transferred from {{{REDACTED-hospital}}} to {{{REDACTED-hospital}}} on Monday.
+```
+
+and `Call the clinic with questions.` is unchanged.
+
+**`labels` is required for this model.** A `pheyes` entry without `labels`, or with an empty list, searches for `["name"]`, so a hospitals entry that leaves it out redacts names instead of hospitals. The model also detects other labels; for example, `["hospital", "room number"]` redacts `assigned to room 204` as `assigned to {{{REDACTED-room number}}}`.
+
+**Spans are typed `OTHER`.** [`POST /api/explain`](../../../api_and_sdks/api/filtering_api.md#explain) reports this model's spans with a `filterType` of `OTHER`, while the dictionary `hospital` filter above reports `HOSPITAL`. Redaction is unaffected, and `%t` in a `redactionFormat` gives `hospital` for both: this model's label, and the dictionary filter's type.
+
+### Names and Hospitals in One Policy
+
+A policy can have several `pheyes` entries, each with its own model. This one detects names with the model the image includes and hospitals with this one:
+
+```json
+{
+  "identifiers": {
+    "pheyes": [
+      {
+        "phEyeConfiguration": { "modelPath": "ph-eye-pii-en-small" },
+        "phEyeFilterStrategies": [
+          { "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }
+        ]
+      },
+      {
+        "phEyeConfiguration": { "modelPath": "gliner-pii-base", "labels": ["hospital"] },
+        "phEyeFilterStrategies": [
+          { "strategy": "REDACT", "redactionFormat": "{{{REDACTED-%t}}}" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+```
+Alice Example was transferred from Mercy Hospital to Riverside General on Monday.
+```
+
+is redacted to
+
+```
+{{{REDACTED-name}}} was transferred from {{{REDACTED-hospital}}} to {{{REDACTED-hospital}}} on Monday.
+```
+
+### Running the Model as a Service
+
+The `philterd/ph-eye:1.3.0-hospitals` image runs the same model as a PhEye service on port 5000. It replaces the older `philterd/ph-eye-hospitals` image. It is about 10 GB. A policy names it as its `endpoint` instead of `modelPath`:
+
+```json
+"phEyeConfiguration": {
+  "endpoint": "http://ph-eye-hospitals:5000/",
+  "labels": ["hospital"]
+}
+```
+
+A policy may name only `PHEYE_ENDPOINT` or an endpoint in `PHEYE_ALLOWED_ENDPOINTS`, and is refused with `400 Bad Request` when saved otherwise. Allow the service, and put it on the same network as Philter (`philter` in the repository's compose files):
+
+```yaml
+services:
+  philter:
+    environment:
+      PHEYE_ALLOWED_ENDPOINTS: http://ph-eye-hospitals:5000/
+  ph-eye-hospitals:
+    image: philterd/ph-eye:1.3.0-hospitals
+    networks:
+      - philter
+```
+
+See [Redaction services](../../../settings.md#redaction-services).

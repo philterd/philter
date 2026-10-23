@@ -1,0 +1,5213 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Philter, the open source PII/PHI redaction engine.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/philter/4.0.0/settings.html">
+      
+      
+        <link rel="prev" href="evaluating-performance.html">
+      
+      
+        <link rel="next" href="database.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Settings - Philter</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#settings" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="https://www.philterd.ai" title="Philter" class="md-header__button md-logo" aria-label="Philter" data-md-component="logo">
+      
+  <img src="assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Philter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Settings
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/philter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="https://www.philterd.ai" title="Philter" class="md-nav__button md-logo" aria-label="Philter" data-md-component="logo">
+      
+  <img src="assets/logo.png" alt="logo">
+
+    </a>
+    Philter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/philter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quick_starts/quick_start_aws.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start on AWS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quick_starts/quick_start_azure.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start on Microsoft Azure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quick_starts/quick_start_gcp.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start on Google Cloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quick_starts/quick_start_sqlite.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start with SQLite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="system_requirements.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="upgrading.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Philter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using Philter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pii_phi_nppi.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII, PHI, and NPPI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="deidentification.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deidentification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/redacting_documents.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redacting Documents and Text
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/contexts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contexts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/replacement_scope.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Consistent Pseudonymization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/custom_lists.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/redact_lists.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Always/Never Redact Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/ledgers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redaction Ledgers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/legal_holds.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal Holds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output_signing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/re-identification.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Re-identification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/disambiguation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disambiguation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/redaction_best_practices.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/important_to_know.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Important to Know
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mistakes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Mistakes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policies
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Policies
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/policies.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redaction Policies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/sample_policies.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sample Policies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/phisql.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoring Policies with PhiSQL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filter_policies.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filter Policies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/policy_schema.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policy Schema 1.3.0 Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    All Filters
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    All Filters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7_1">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7_1" id="__nav_4_7_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Filters
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_7_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Common Filters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/ages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/bank-routing-numbers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bank Routing Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/bitcoin-addresses.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bitcoin Addresses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/canada-sin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Canadian SINs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/creditcards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credit Card Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/currency.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Currency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/dates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/drivers-license-numbers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drivers License Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/ein.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EINs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/email-addresses.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Email Addresses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/iban-codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IBAN Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/ip-addresses.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IP Addresses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/itin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ITINs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/mac-addresses.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MAC Addresses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/passport-numbers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Passport Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/phone-numbers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phone Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/phone-number-extensions.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phone Number Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/sections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/ssns-and-tins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSNs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/street-address.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Street Addresses
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/tracking-numbers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking Numbers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/urls.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    URLs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/vins.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VINs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/common_filters/zip-codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zip Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7_2">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7_2" id="__nav_4_7_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Location Filters
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Location Filters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/locations/cities.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/locations/counties.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Counties
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/locations/hospitals.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hospitals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/locations/states.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    States
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/locations/state-abbreviations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Abbreviations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7_3">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7_3" id="__nav_4_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persons Names Filters
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Persons Names Filters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/persons_names/first-names.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Names
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/persons_names/persons-names-ner.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persons Names (NER)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/persons_names/surnames.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surnames
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7_4" id="__nav_4_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Filters
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Custom Filters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/custom_filters/dictionary.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filters/custom_filters/identifier.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Identifier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/filter_strategies.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filter Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/splitting_input_text.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Splitting Input Text
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="policies/ignoring_specific_information.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ignoring Specific Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API and SDKs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API and SDKs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="account/api_keys.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys and Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/endpoint_inventory.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Endpoint Inventory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4">
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/public_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public Health and Signing Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="redaction/re-identification.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Re-identification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/filtering_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filtering API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/documents_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documents API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/webhooks.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Webhooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/policies_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policies API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/models_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/custom_lists_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Lists API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/redact_lists_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Always/Never Redact Lists API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/contexts_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contexts API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/audit_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Log API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/pii_counts_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII Counts API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/ledger_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Redaction Ledger API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/legal_holds_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal Holds API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/users_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/sign_in_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sign-in API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/api_keys_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/limits_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limits API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/api/settings_api.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_and_sdks/sdks.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6">
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developers/developers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="developers/developer_quick_start.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="evaluating-performance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluating Performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="settings.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#configuring-philter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring Philter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#database-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TLS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-certificates-mutual-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client certificates (mutual TLS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outbound-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound TLS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auditing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redaction-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction Ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asynchronous-documents-and-webhooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asynchronous Documents and Webhooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contexts-and-disambiguation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contexts and Disambiguation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redaction-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Redaction Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#redaction-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-in-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables in a policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Signing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-drift-monitoring-phield" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII Drift Monitoring (Phield)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PII Drift Monitoring (Phield)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bootstrap-and-in-memory-capacity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap and in-memory capacity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-queue-admission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async queue admission
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="database.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="caching.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="high_availability.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High Availability and Clustering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="monitoring_and_logging.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring and Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="phield.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII Drift Monitoring (Phield)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="diffuse.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Differential-Privacy Reporting (Diffuse)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="auditing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auditing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sign_in_security.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sign-in Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_10">
+        
+          
+          <label class="md-nav__link" for="__nav_6_10" id="__nav_6_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="other_features/referential_integrity.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Referential Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="other_features/span_disambiguation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Span Disambiguation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="support.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#configuring-philter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring Philter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#database-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Database Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TLS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#client-certificates-mutual-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client certificates (mutual TLS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outbound-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound TLS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auditing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redaction-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction Ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asynchronous-documents-and-webhooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asynchronous Documents and Webhooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contexts-and-disambiguation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contexts and Disambiguation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#redaction-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Redaction Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#redaction-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redaction services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables-in-a-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables in a policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Signing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-drift-monitoring-phield" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII Drift Monitoring (Phield)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PII Drift Monitoring (Phield)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bootstrap-and-in-memory-capacity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap and in-memory capacity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-queue-admission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async queue admission
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="settings">Settings</h1>
+<p>Philter has settings to control how it operates. The settings and how to configure each are described below.</p>
+<blockquote>
+<p>The configuration for the types of sensitive information that Philter identifies are defined
+in <a href="policies/filter_policies.html">filter policies</a> outside of Philter's configuration properties described on this page.</p>
+</blockquote>
+<h2 id="configuring-philter">Configuring Philter</h2>
+<p>Philter reads its settings from environment variables. There is no settings file.</p>
+<h2 id="database-settings">Database Settings</h2>
+<p>Philter stores policies and other data in a SQLite file by default, which suits a single Philter instance, or in MongoDB, which several instances can share. See <a href="database.html">Database</a> for what is stored, for <a href="database.html#sqlite">SQLite</a>, and for MongoDB connection-string examples (authentication, replica sets, and Atlas).</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STORAGE_TYPE</code></td>
+<td>Where Philter stores its data: <code>sqlite</code>, a file for a <a href="database.html#sqlite">single Philter instance</a> with no database server, or <code>mongodb</code>, which several instances can share. Philter does not start with any other value, or when <code>MONGODB_CONNECTION_STRING</code> is set and <code>STORAGE_TYPE</code> is not, so a deployment that used MongoDB does not start on a new, empty SQLite database.</td>
+<td><code>sqlite</code></td>
+</tr>
+<tr>
+<td><code>SQLITE_PATH</code></td>
+<td>With SQLite storage, the database file. Its directory must exist and be writable. A relative path, such as the default, is relative to the directory Philter is started in, so outside Docker set an absolute path; Philter logs where the database is at startup, with a warning when the path is relative. The Docker image sets it to <code>/opt/philter/data/philter.db</code>; mount a volume at <code>/opt/philter/data</code> to keep the data.</td>
+<td><code>philter.db</code> (<code>/opt/philter/data/philter.db</code> in the Docker image)</td>
+</tr>
+<tr>
+<td><code>MONGODB_CONNECTION_STRING</code></td>
+<td>With <code>STORAGE_TYPE=mongodb</code>, the MongoDB connection string.</td>
+<td><code>mongodb://localhost:27017</code></td>
+</tr>
+<tr>
+<td><code>SCHEMA_MIGRATION_WAIT_SECONDS</code></td>
+<td>How long an instance waits at startup for another instance that is <a href="database.html#schema-version-and-migrations">migrating the data</a> before it stops with an error.</td>
+<td><code>600</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="encryption">Encryption</h2>
+<p>Philter encrypts sensitive data at rest and requires an encryption key. Encryption is applied per collection; see <a href="database.html#what-is-encrypted-at-rest">what is encrypted</a>. Philter will not start if the key is missing or invalid. The <code>compose.sh</code> script in the repository generates one into a <code>.env</code> file on first run and reuses it after that, which is the simplest way to keep the key stable across restarts. It generates the bootstrap API key into the same file.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PHILTER_ENCRYPTION_KEY</code></td>
+<td>A base64-encoded 32-byte (AES-256) key. Generate one with <code>openssl rand -base64 32</code>. Each record is encrypted with its own random data key, stored wrapped under this key, so this value is required to read any encrypted data. Use the same value across restarts and instances, and back it up: if it is lost or changed, existing encrypted data cannot be recovered and Philter will not start.</td>
+<td>(none; required)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cache-settings">Cache Settings</h2>
+<p>The cache is used for API key and context caching. What Philter stores in Valkey is encrypted under <code>PHILTER_ENCRYPTION_KEY</code>; see <a href="caching.html#protecting-the-cache">Protecting the cache</a>. Philter supports Valkey/Redis as the backend cache. The cache is <strong>optional for a single instance</strong> and <strong>required when more than one instance shares a database</strong>, with every instance using the same one. When <code>CACHE_HOSTNAME</code> is unset or blank, Philter uses an in-memory cache instead. The in-memory cache is ephemeral (it is not shared across instances and is lost on restart) and a warning is printed at startup. Configure Valkey for a durable, shared cache.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CACHE_HOSTNAME</code></td>
+<td>The hostname or IP address of the Valkey cache. Leave unset to use an in-memory cache.</td>
+<td>(empty; in-memory)</td>
+</tr>
+<tr>
+<td><code>CACHE_PORT</code></td>
+<td>The Valkey port.</td>
+<td><code>6379</code></td>
+</tr>
+<tr>
+<td><code>CACHE_PASSWORD</code></td>
+<td>The Valkey password. Philter warns at startup when a cache on another host has none. See <a href="caching.html#protecting-the-cache">Protecting the cache</a>.</td>
+<td>(empty)</td>
+</tr>
+<tr>
+<td><code>CACHE_SSL</code></td>
+<td>Whether to use TLS for communication with the Valkey cache. Philter warns at startup when a cache on another host is used without it.</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>SCHEDULER_POOL_SIZE</code></td>
+<td>Threads shared by Philter's four scheduled background tasks: claiming and redacting asynchronous documents, reconciling their completion notifications, delivering webhooks, and expiring session keys. Tasks wait for a free thread, so with a single thread a slow document delays webhook delivery.</td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><code>API_KEY_CACHE_TTL_SECONDS</code></td>
+<td>How long a resolved API key is cached. Revoking a key through the API evicts it immediately; this bounds how long a key revoked out-of-band keeps working. See <a href="caching.html">Caching</a>.</td>
+<td><code>60</code></td>
+</tr>
+<tr>
+<td><code>REDACTION_CACHE_TTL_SECONDS</code></td>
+<td>How long the filtering endpoints keep a user's policy and always/never redact lists in-process. An edited or deleted policy or list applies to the next request on every instance regardless: a cached copy is used only while its revisions match the stored ones. Never written to Valkey/Redis. See <a href="caching.html">Caching</a>.</td>
+<td><code>60</code></td>
+</tr>
+<tr>
+<td><code>ADMIN_SETTINGS_CACHE_TTL_SECONDS</code></td>
+<td>How long an instance caches the admin settings (output signing, Phield, Diffuse, the webhook allowlist, and MFA availability and requirement) before re-reading them. They are read on every redaction, so caching keeps that off the database. A change made through this instance's <a href="api_and_sdks/api/settings_api.html">Settings API</a> applies immediately; one made on another instance is picked up within this window.</td>
+<td><code>60</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="metrics">Metrics</h2>
+<p>Philter exposes metrics in Prometheus format at <code>/actuator/prometheus</code>. See <a href="monitoring_and_logging.html">Monitoring and Logging</a>. There are no metrics-storage settings to configure.</p>
+<h2 id="tls">TLS</h2>
+<p>Philter serves HTTPS on port 8080. The Docker image generates a self-signed certificate the first time it starts and writes it to <code>/opt/philter/ssl/philter.p12</code>. That certificate is not signed by a certificate authority, so clients must skip verification (<code>curl -k</code>). It encrypts the connection but does not prove Philter's identity, which is why every example in this documentation passes <code>-k</code>.</p>
+<p>Replace it for anything beyond evaluation. There are two ways to do that:</p>
+<p><strong>Supply your own certificate.</strong> Put it in a PKCS12 keystore, mount the keystore into the container, and point <code>SSL_KEYSTORE</code> at it. Nothing is generated when a keystore already exists at that path.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">philter</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">SSL_KEYSTORE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/philter/ssl/philter-cert.p12</span>
+<span class="w">      </span><span class="nt">SSL_KEYSTORE_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;keystore password&gt;</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./philter-cert.p12:/opt/philter/ssl/philter-cert.p12:ro</span>
+</code></pre></div>
+<p><strong>Terminate TLS in front of Philter</strong>, at a load balancer or ingress, and set <code>SSL_ENABLED=false</code> so Philter serves plain HTTP on the same port. This is the usual arrangement for a <a href="high_availability.html">multi-node deployment</a>, where the load balancer already holds the certificate. Keep the network between the load balancer and Philter private: the redaction API carries the sensitive text you are redacting.</p>
+<p>Running the JAR directly serves plain HTTP unless you set <code>SSL_ENABLED=true</code>, since no certificate is generated outside the container.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SSL_ENABLED</code></td>
+<td>Whether Philter serves HTTPS. Set to <code>false</code> when TLS is terminated in front of Philter. The port is 8080 either way.</td>
+<td><code>true</code> in the Docker image, <code>false</code> when running the JAR</td>
+</tr>
+<tr>
+<td><code>SSL_KEYSTORE</code></td>
+<td>Path to the keystore holding the certificate and private key. When the container starts and no file exists at this path, a self-signed certificate is generated there.</td>
+<td><code>/opt/philter/ssl/philter.p12</code></td>
+</tr>
+<tr>
+<td><code>SSL_KEYSTORE_PASSWORD</code></td>
+<td>The keystore password. The default is public, so it does not protect the private key: the file's permissions do. A keystore the container generates is readable only by Philter's user; give one you supply the same permissions.</td>
+<td><code>philter</code></td>
+</tr>
+<tr>
+<td><code>SSL_KEYSTORE_TYPE</code></td>
+<td>The keystore format, <code>PKCS12</code> or <code>JKS</code>.</td>
+<td><code>PKCS12</code></td>
+</tr>
+<tr>
+<td><code>SSL_KEY_ALIAS</code></td>
+<td>The alias of the key to use within the keystore.</td>
+<td><code>philter</code></td>
+</tr>
+<tr>
+<td><code>SSL_CERTIFICATE_HOSTNAME</code></td>
+<td>The hostname recorded in the generated certificate's subject and subject alternative name. Used only when generating one.</td>
+<td><code>localhost</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="client-certificates-mutual-tls">Client certificates (mutual TLS)</h3>
+<p>Philter can require each client to present a certificate, in addition to its API key, when it serves HTTPS itself. A client whose certificate was not issued by a certificate in Philter's trust store is refused during the TLS handshake, before any request reaches the API. This applies to every path on the port, including <code>/api/health</code> and <code>/actuator/prometheus</code>, so health checks and metrics scrapers need a client certificate too.</p>
+<p>A client certificate does not identify a Philter user and does not replace an API key: a client still needs a valid API key for every endpoint that requires one. The <a href="api_and_sdks/sdks.html">Java SDK</a> presents a client certificate with <code>withClientCertificate</code>.</p>
+<p>Put the certificates that issue your client certificates, usually your own certificate authority's, in a PKCS12 trust store:</p>
+<div class="highlight"><pre><span></span><code>keytool -importcert -alias clients-ca -file clients-ca.crt \
+  -keystore /opt/philter/ssl/clients.p12 -storetype PKCS12 -storepass changeit -noprompt
+</code></pre></div>
+<p>Then mount it and turn client authentication on:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">philter</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">SSL_CLIENT_AUTH</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">need</span>
+<span class="w">      </span><span class="nt">SSL_TRUSTSTORE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/philter/ssl/clients.p12</span>
+<span class="w">      </span><span class="nt">SSL_TRUSTSTORE_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">changeit</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./clients.p12:/opt/philter/ssl/clients.p12:ro</span>
+</code></pre></div>
+<p>Check it with a client certificate and its key:</p>
+<div class="highlight"><pre><span></span><code>curl --cacert philter.crt --cert client.crt --key client.key https://localhost:8080/api/health
+</code></pre></div>
+<p>Trust only the certificate authorities you use for Philter's clients. Every certificate one of them issues is accepted.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SSL_CLIENT_AUTH</code></td>
+<td><code>need</code> requires a client certificate issued by a certificate in the trust store. <code>want</code> asks for one but serves clients without one, or with one the trust store does not vouch for, so it does not restrict access. <code>none</code> asks for none. With <code>need</code> or <code>want</code>, Philter refuses to start unless <code>SSL_ENABLED</code> is <code>true</code> and <code>SSL_TRUSTSTORE</code> is set.</td>
+<td><code>none</code></td>
+</tr>
+<tr>
+<td><code>SSL_TRUSTSTORE</code></td>
+<td>Path to the trust store holding the certificates that issue client certificates. Used only when <code>SSL_CLIENT_AUTH</code> is <code>need</code> or <code>want</code>.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>SSL_TRUSTSTORE_PASSWORD</code></td>
+<td>The trust store password.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>SSL_TRUSTSTORE_TYPE</code></td>
+<td>The trust store format, <code>PKCS12</code> or <code>JKS</code>.</td>
+<td><code>PKCS12</code></td>
+</tr>
+</tbody>
+</table>
+<p>When TLS is terminated in front of Philter, require client certificates at the load balancer, ingress, or service mesh instead: Philter only sees connections from the proxy.</p>
+<h3 id="outbound-tls">Outbound TLS</h3>
+<p>The settings above govern the certificate Philter <em>serves</em>. This one governs how Philter treats certificates it <em>receives</em> when the redaction pipeline calls another service over HTTPS, such as a <a href="system_requirements.html">ph-eye</a> instance behind its own certificate.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TLS_TRUST_ALL_ENABLED</code></td>
+<td>Whether outbound HTTPS from the redaction pipeline accepts any certificate from any host, skipping certificate and hostname verification. <strong>Disabled by default.</strong> Set to <code>true</code> only for a self-signed service on a private network; with it on those connections are interceptable by anything on the path. Philter logs a warning at startup while it is enabled.</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Prefer adding the service's issuing certificate to the JVM truststore over enabling this. Where the certificate is <code>ph-eye.crt</code>, that means importing it into a truststore and pointing the JVM at it:</p>
+<div class="highlight"><pre><span></span><code>keytool -importcert -alias ph-eye -file ph-eye.crt \
+  -keystore /opt/philter/ssl/truststore.p12 -storetype PKCS12 -storepass changeit -noprompt
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">philter</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">JAVA_TOOL_OPTIONS</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;-</span>
+<span class="w">        </span><span class="no">-Djavax.net.ssl.trustStore=/opt/philter/ssl/truststore.p12</span>
+<span class="w">        </span><span class="no">-Djavax.net.ssl.trustStorePassword=changeit</span>
+</code></pre></div>
+<p>That keeps verification on and trusts exactly the one certificate you intend, rather than all of them.</p>
+<h2 id="api-access">API Access</h2>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PHILTER_BOOTSTRAP_API_KEY</code></td>
+<td>The <code>admin</code> user's first API key, and the only way to get a first credential. Must be <code>sk_</code> followed by 32 letters and digits (generate one however you provision secrets). <strong>Required while the <code>admin</code> user has never had an API key</strong>: Philter does not start if it is unset or malformed. Once the <code>admin</code> user has had any key, active or revoked, it is ignored, so it is seeded once on a fresh install and never re-created after you revoke it. It is created with every <a href="account/api_keys.html#scopes">scope</a>; use it to create narrower keys with the <a href="api_and_sdks/api/api_keys_api.html">API Keys API</a>. To retire it, create a replacement administrator key holding every scope, then revoke the bootstrap key with the replacement: a key cannot revoke itself or a key holding scopes it lacks.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>PASSWORD_SIGN_IN_ENABLED</code></td>
+<td>Whether people may <a href="api_and_sdks/api/sign_in_api.html">sign in</a> with a username and password to get a session key. <strong>Disabled by default</strong>: while it is off, <code>POST /api/sign-in</code> returns <code>404 Not Found</code>, so a deployment without a user interface exposes no login endpoint. Set it to <code>true</code> when running a user interface such as Philter UI.</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>SIGN_IN_MAX_FAILURES</code></td>
+<td>How many failed <a href="api_and_sdks/api/sign_in_api.html#lockout-and-rate-limiting">sign-ins</a> for a username, within <code>SIGN_IN_LOCKOUT_MINUTES</code>, lock it. Philter does not start if it is zero or negative; a value that is not a whole number is ignored with a warning, and the default is used.</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>SIGN_IN_LOCKOUT_MINUTES</code></td>
+<td>How long a locked username is refused, and the window failures are counted in. Philter does not start if it is zero or negative; a value that is not a whole number is ignored with a warning, and the default is used.</td>
+<td><code>15</code></td>
+</tr>
+<tr>
+<td><code>SIGN_IN_RATE_LIMIT_PER_MINUTE</code></td>
+<td>How many sign-in requests each client address may make a minute, across both sign-in steps. Philter does not start if it is zero or negative; a value that is not a whole number is ignored with a warning, and the default is used. IPv6 clients are counted by /64. Account lockout is stored with the user.</td>
+<td><code>20</code></td>
+</tr>
+<tr>
+<td><code>SESSION_KEY_IDLE_TIMEOUT_MINUTES</code></td>
+<td>How long a <a href="account/api_keys.html#session-keys">session key</a>, the key issued when a person signs in, stays valid without a request. Each request starts it again. Philter does not start if it is zero or negative; a value that is not a whole number is ignored with a warning, and the default is used. Applies to keys issued after a change.</td>
+<td><code>30</code></td>
+</tr>
+<tr>
+<td><code>SESSION_KEY_MAX_LIFETIME_MINUTES</code></td>
+<td>How long a session key stays valid after it is issued, however active it is. Philter does not start if it is zero or negative; a value that is not a whole number is ignored with a warning, and the default is used. Applies to keys issued after a change.</td>
+<td><code>720</code> (12 hours)</td>
+</tr>
+<tr>
+<td><code>ADMIN_CROSS_USER_ACCESS_ENABLED</code></td>
+<td>Whether an administrator may view or act on <strong>other</strong> users' resources (their contexts, policies, custom lists, documents, and redaction ledger) via the API <code>owner</code> parameter and the <code>all_users</code> parameter on the policy, context, custom list, ledger, and legal hold listings. <strong>Disabled by default</strong>, so an admin sees only their own data, like any user; set to <code>true</code> to opt in. While it is off, an administrator can create an API key for another user only if that user has never had one (counting revoked and session keys), which provisions a new user; a key for a user who may already hold data would let the administrator act as them. Each request that reaches another user's resources this way, and each such key, is recorded as an <a href="auditing.html"><code>admin_cross_user_access</code></a> audit event. Does not affect other admin functions such as user management, so it is not a complete boundary: an administrator who sets or resets a user's password, and removes their MFA, can sign in as that user when <code>PASSWORD_SIGN_IN_ENABLED</code> is on. That is recorded as <code>user_password_set</code> or <code>user_password_reset</code> and <code>user_mfa_removed</code>, not <code>admin_cross_user_access</code>, and a reset stops the user's own password and sessions working. See <a href="sign_in_security.html#first-sign-in-and-resets">Sign-in Security</a>.</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>LEDGER_DELETION_ENABLED</code></td>
+<td>Whether <a href="redaction/ledgers.html">redaction ledger</a> entries may be deleted at all, through <code>DELETE /api/ledger</code>. <strong>Disabled by default</strong>: when unset, no ledger evidence can be deleted through Philter. Deletion is additionally restricted to administrators, and <a href="redaction/legal_holds.html">legal holds</a> still block it. Deleting another user's ledger requires <code>ADMIN_CROSS_USER_ACCESS_ENABLED</code> as well.</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>TRUSTED_PROXIES</code></td>
+<td>The load balancers and proxies whose <code>X-Forwarded-For</code> header Philter believes when recording the client IP address of an API request in the <a href="auditing.html">audit log</a>: a comma-separated list of IP addresses and CIDR ranges. A request from one of them is attributed to the client address the header names, reading the header from the right and skipping trusted proxies, since each proxy appends the address it received from and a client can write the leftmost entries itself. A request from any other address is attributed to the connection's address, and the header is ignored. Only IP addresses are recorded; a hostname or other text in the header is ignored, and nothing is looked up in DNS. The default trusts only loopback, so a proxy on the same host works without configuration and no other client, including one on your internal network, can choose its recorded address. <strong>Behind a load balancer or ingress on another host, or with an application on another host that passes its users' addresses, such as <a href="https://github.com/philterd/philter-ui">Philter UI</a>, set this to their addresses</strong>: until then, every request is recorded as coming from them, and all clients share their <a href="sign_in_security.html#lockout-and-rate-limiting">sign-in rate limit</a>. Only this setting decides: Philter does not let its embedded web server act on <code>X-Forwarded-For</code>, including on Kubernetes and other cloud platforms where Spring Boot would otherwise trust it from any private address. Philter logs a warning, once, the first time it ignores the header, naming the address it came from. Entries that are not an address or range are logged and ignored.</td>
+<td><code>127.0.0.0/8, ::1</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="auditing">Auditing</h2>
+<p>Philter records security-relevant actions to an <a href="auditing.html">audit log</a>. Audit events fall into two
+groups, and only one of them can be switched off.</p>
+<p><strong>Security events are always recorded</strong> and cannot be disabled: authentication failures, API key and
+user account changes, policy changes, ledger access, export and deletion, admin cross-user actions,
+legal holds, and signing key lifecycle. Disabling the audit trail is a compliance decision rather
+than a tuning setting, so Philter does not offer it.</p>
+<p><strong>Redaction-activity events are optional.</strong> A redaction records <code>document_redaction_completed</code>; an
+asynchronous document submission also records <code>document_redaction_initiated</code> when it is queued. They are the only audit events
+on the redaction path and the only unbounded source of growth in the audit log, so a deployment
+running Philter as a plain redaction engine can turn them off. Doing so does not reduce what a
+security review can see; it removes the per-redaction volume.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AUDIT_REDACTION_EVENTS_ENABLED</code></td>
+<td>Whether the redaction-activity audit events are recorded. Set to <code>false</code> for a lean, high-volume deployment. Security events are unaffected.</td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="redaction-ledger">Redaction Ledger</h2>
+<p>Whether a redaction is recorded in the <a href="redaction/ledgers.html">redaction ledger</a> is controlled per context by the <code>ledger</code> option set when <a href="api_and_sdks/api/contexts_api.html">creating or updating a context</a>. It is disabled by default, so redactions made in a context are not written to the ledger unless the context has it enabled.</p>
+<p><strong>Ledger entries never expire on their own.</strong> They are governance evidence, so they are removed only by a deliberate deletion: an administrator calling <code>DELETE /api/ledger</code> or <code>DELETE /api/ledger/{documentId}</code>. Both require <code>LEDGER_DELETION_ENABLED=true</code> (see <a href="#api-access">API Access</a> above), are refused while a <a href="redaction/legal_holds.html">legal hold</a> covers the evidence, and are recorded in the <a href="auditing.html">audit log</a>.</p>
+<p>To enforce a retention period, schedule the purge endpoint. This gives you time-based retention that is still admin-only, hold-aware, and audited:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Daily: delete this account's ledger chains older than 90 days.</span>
+curl<span class="w"> </span>-k<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer &lt;token&gt;"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">"https://localhost:8080/api/ledger?older_than_days=90"</span>
+</code></pre></div>
+<p>Ledger collections must have no TTL indexes. Startup rejects incompatible schemas; it does not drop indexes or migrate data.</p>
+<h2 id="asynchronous-documents-and-webhooks">Asynchronous Documents and Webhooks</h2>
+<p>Records for asynchronous (PDF) redactions and outbound webhook deliveries are removed automatically once they are past these retention periods: by TTL indexes with MongoDB, and by a check that runs every minute with <a href="database.html#sqlite">SQLite</a>.</p>
+<p>Required TTL indexes are verified at startup. Conflicting options or unexpected expiry fields prevent startup. The unreleased 4.0 schema is created directly without migrations. Job retention uses <code>retention_at</code> after notification acknowledgement; webhook retention uses <code>completed_at</code> for either terminal outcome.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PENDING_DOCUMENTS_TTL_SECONDS</code></td>
+<td>How long to keep a finished asynchronous redaction's record, including its encrypted redacted document, after the job completed or failed and its notification was queued. Deleting the document removes it sooner. See <a href="api_and_sdks/api/documents_api.html#what-philter-keeps-and-for-how-long">what Philter keeps</a>.</td>
+<td><code>604800</code> (7 days)</td>
+</tr>
+<tr>
+<td><code>WEBHOOK_DELIVERIES_TTL_SECONDS</code></td>
+<td>How long to keep delivered or failed webhook records after completion.</td>
+<td><code>2592000</code> (30 days)</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_CLAIM_LEASE_SECONDS</code></td>
+<td>How long a worker owns an asynchronous document job before another worker may recover it. Must be positive; a non-positive value prevents startup. A worker that stops mid-redaction parks the job until this expires, so a deployment doing short redactions may want less than the default. A worker renews its lease every third of this value (at most every 60 seconds) while it is still working, so a long redaction is not interrupted by a short lease.</td>
+<td><code>600</code> (10 minutes)</td>
+</tr>
+<tr>
+<td><code>WEBHOOK_CLAIM_LEASE_SECONDS</code></td>
+<td>How long a worker owns a webhook attempt before another worker may recover it. Must be positive; allow enough time for the configured HTTP timeouts and processing overhead. Abandoned claims count toward the eight-attempt limit.</td>
+<td><code>300</code> (5 minutes)</td>
+</tr>
+<tr>
+<td><code>WEBHOOK_RESPONSE_TIMEOUT_SECONDS</code></td>
+<td>How long to wait for your endpoint to respond after the request is sent. A receiver that exceeds this is treated as a failed attempt and retried. Your endpoint should acknowledge quickly and do its work asynchronously.</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>WEBHOOK_CONNECT_TIMEOUT_SECONDS</code></td>
+<td>How long to wait to establish the TCP connection (and TLS handshake) to your endpoint.</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>WEBHOOK_POOL_TIMEOUT_SECONDS</code></td>
+<td>How long to wait for a free connection from the outbound connection pool.</td>
+<td><code>5</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="contexts-and-disambiguation">Contexts and Disambiguation</h2>
+<p>These bound the per-context storage so it does not grow without limit. See <a href="redaction/contexts.html">Contexts</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MAX_CONTEXT_SIZE</code></td>
+<td>Maximum number of token-to-replacement entries stored per context. When reached, the least-read entry is evicted.</td>
+<td><code>10000</code></td>
+</tr>
+<tr>
+<td><code>MAX_VECTORS_PER_CONTEXT</code></td>
+<td>Maximum number of <a href="other_features/span_disambiguation.html">span disambiguation</a> vectors stored per <code>(user, context)</code> pair. When reached, the oldest is evicted (FIFO).</td>
+<td><code>100000</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="redaction-engine">Redaction Engine</h2>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INCREMENTAL_REDACTIONS_ENABLED</code></td>
+<td>Whether Phileas computes incremental redactions. These are required to populate the redaction ledger; leave enabled if any context uses the ledger.</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>MAX_FILE_SIZE_BYTES</code></td>
+<td>Maximum request body size, in bytes, for the endpoints that accept a document to redact: <code>POST /api/filter</code> and <code>POST /api/explain</code>.</td>
+<td><code>10485760</code> (10 MB)</td>
+</tr>
+<tr>
+<td><code>MAX_FILE_SIZE_BYTES_OTHER</code></td>
+<td>Maximum request body size, in bytes, for every other request, whatever its method. These carry configuration (policies, contexts, lists), not documents. The default accommodates the largest body these endpoints accept: a <a href="redaction/redact_lists.html">redact lists</a> <code>POST</code> replaces both lists at once, so at the documented maximum of 1,000 terms of 100 characters per list it reaches roughly 203 KB.</td>
+<td><code>262144</code> (256 KB)</td>
+</tr>
+<tr>
+<td><code>PDF_MAX_PAGES</code></td>
+<td>The most pages a PDF may have to be redacted. A larger PDF is refused with <code>413</code> and the reason <code>payload_too_large</code>, or, when queued, fails with that message. <code>0</code> or less sets no limit. Philter does not start if it is not a whole number.</td>
+<td><code>2000</code></td>
+</tr>
+<tr>
+<td><code>PDF_MAX_PIXELS_PER_PAGE</code></td>
+<td>The most pixels one PDF page may render to at the policy's <code>dpi</code>. Each redacted page is rendered to an image in memory, so without this a small PDF with a very large page size, or a policy with a high <code>dpi</code>, could exhaust Philter's memory. A PDF with a larger page, or a page that uses an image larger than this by the size the image declares, is refused like one with too many pages. A Letter page at 600 DPI is about 34 million pixels. <code>0</code> or less sets no limit. Philter does not start if it is not a whole number.</td>
+<td><code>50000000</code></td>
+</tr>
+<tr>
+<td><code>PDF_MAX_STREAM_BYTES</code></td>
+<td>The most bytes one compressed stream in a PDF page may decompress to. A small PDF can hold a stream that decompresses to far more than its size, which would exhaust memory as it is read. Streams compressed with Flate alone, the most common kind, are checked before the PDF is read, and a PDF with a larger one is refused like one with too many pages. Streams compressed another way, inline images, a JPEG larger than it declares, and compressed object streams are not checked; see <a href="system_requirements.html#memory">Memory</a> for the backstop. <code>0</code> or less sets no limit. Philter does not start if it is not a whole number.</td>
+<td><code>268435456</code> (256 MB)</td>
+</tr>
+<tr>
+<td><code>PDF_MAX_CONCURRENT</code></td>
+<td>How many PDFs one Philter instance redacts at once, counting synchronous requests and queued documents together. Each page being redacted is rendered to an image in memory, so allow about 500 MB of heap for each at the default limits. A synchronous PDF (<code>async=false</code>) that arrives while all are in use is refused with <code>503 Service Unavailable</code> and <code>Retry-After: 5</code>; a queued document waits its turn. <code>0</code> or less sets no limit. Philter does not start if it is not a whole number.</td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><code>PHEYE_ENDPOINT</code></td>
+<td>The endpoint of the ph-eye NER service, used by a policy's ph-eye filter when the policy sets no endpoint.</td>
+<td><code>http://philter-ph-eye-1:5000/</code></td>
+</tr>
+<tr>
+<td><code>PHEYE_BEARER_TOKEN</code></td>
+<td>Bearer token sent to ph-eye. It is sent only to <code>PHEYE_ENDPOINT</code>, never to another endpoint a policy names, and a policy cannot set a token of its own.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>PHEYE_ALLOWED_ENDPOINTS</code></td>
+<td>Other ph-eye endpoints a policy may name, separated by commas. A trailing slash is ignored. A policy naming any endpoint other than these and <code>PHEYE_ENDPOINT</code> is refused. See <a href="#redaction-services">Redaction services</a>.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>PHEYE_MODELS_DIRECTORY</code></td>
+<td>The directory of local ph-eye models. Each subdirectory holding a complete model is a model a policy can name in its ph-eye <code>modelPath</code>, listed by <a href="api_and_sdks/api/models_api.html"><code>GET /api/models</code></a>. The Docker image includes <code>ph-eye-pii-en-small</code> there, which the default policy names. That model is licensed CC-BY-4.0 and was trained on NVIDIA's <a href="https://huggingface.co/datasets/nvidia/Nemotron-PII">Nemotron-PII</a> dataset; its model card, with the attribution the license requires, is <code>README.md</code> in its folder and at <a href="https://huggingface.co/philterd/ph-eye-pii-en-small">philterd/ph-eye-pii-en-small</a>. Philter does not start if it is set and is not a directory.</td>
+<td><code>/opt/philter/models</code></td>
+</tr>
+<tr>
+<td><code>PHEYE_ALLOWED_MODEL_PATHS</code></td>
+<td>Other local GLiNER model directories a policy's ph-eye <code>modelPath</code> may give as a path, separated by commas. A policy giving any other path, outside <code>PHEYE_MODELS_DIRECTORY</code>, is refused.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>PHEYE_ONNX_DEVICE</code></td>
+<td>Where local ph-eye models run: <code>cpu</code>, <code>cuda</code> (GPU 0), or <code>cuda:&lt;n&gt;</code>. The Philter image includes ONNX Runtime's CPU package, so <code>cuda</code> there logs a warning and runs on the CPU; a GPU needs a build with <code>onnxruntime_gpu</code> and CUDA. See <a href="https://philterd.github.io/phileas-pheye-onnx/latest/configuration/#gpu">phileas-pheye-onnx's configuration</a>. Philter does not start if it is any other value.</td>
+<td><code>cpu</code></td>
+</tr>
+<tr>
+<td><code>PHEYE_ONNX_THREADS</code></td>
+<td>Threads each local ph-eye model uses for one detection. More lower one request's latency; fewer give more throughput when many requests run at once, especially under a CPU quota such as a Kubernetes CPU limit. Philter does not start if it is not a positive whole number.</td>
+<td>The CPUs available to Philter</td>
+</tr>
+<tr>
+<td><code>GENERATOR_ALLOWED_ENDPOINTS</code></td>
+<td>Endpoints a policy's <a href="policies/filter_strategies.html#the-map_replace-filter-strategy">replacement generators</a> may name, separated by commas. A trailing slash is ignored. A policy naming any other endpoint is refused.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>POLICY_FILES_DIRECTORIES</code></td>
+<td>Directories, separated by commas, that the files a policy names must be inside. Unset, a policy may name no file. Each must exist and be a directory, and cannot be the filesystem root, or Philter refuses to start. See <a href="#policy-files">Policy files</a>.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>POLICY_FILES_MAX_BYTES</code></td>
+<td>The largest file, in bytes, a policy may name. Must be a positive number, or Philter refuses to start. Set these two rather than Phileas's own <code>policy.files.*</code> properties: Philter refuses to start if one of those is set as an environment variable or system property, since it would override them.</td>
+<td><code>10485760</code> (10 MB)</td>
+</tr>
+<tr>
+<td><code>POLICY_ALLOWED_ENV_KEYS</code></td>
+<td>Environment variables, separated by commas, that a policy may name as <code>env:NAME</code> for a <code>crypto</code> or <code>fpe</code> key or tweak. Unset, a policy may name no variable. Philter refuses to start if a name is not a valid variable name or is one of Philter's own secrets. Set this rather than Phileas's own <code>policy.env.allowed</code> property: Philter refuses to start if that is set as an environment variable or system property. See <a href="#environment-variables-in-a-policy">Environment variables in a policy</a>.</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td><code>PHEYE_TIMEOUT</code></td>
+<td>Connection-request and response timeout, in seconds, for calls to ph-eye, used when the policy sets none.</td>
+<td><code>600</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="redaction-services">Redaction services</h3>
+<p>Any user can write a policy, so the services and files a policy reaches are the operator's decision, not the policy author's. A policy is refused, when it is saved and before a redaction or asynchronous submission uses it, if it names a ph-eye <code>endpoint</code> other than <code>PHEYE_ENDPOINT</code> or one in <code>PHEYE_ALLOWED_ENDPOINTS</code>, sets a ph-eye <code>bearerToken</code>, names a <code>modelPath</code> that is neither a model in <code>PHEYE_MODELS_DIRECTORY</code> nor in <code>PHEYE_ALLOWED_MODEL_PATHS</code>, or names a generator <code>endpoint</code> not in <code>GENERATOR_ALLOWED_ENDPOINTS</code>. Without this, a policy could send the text being redacted, or the deployment's ph-eye token, to a server of its author's choosing. Philter does not follow redirects from these services, so an allowed endpoint cannot redirect a request elsewhere.</p>
+<h3 id="policy-files">Policy files</h3>
+<p>A policy can name files of terms and replacements: a custom dictionary's <code>files</code>, a filter's <code>ignoredFiles</code>, the top-level <code>ignored</code> <code>files</code>, and a <code>MAP_REPLACE</code> strategy's <code>mappingFiles</code>. A file must be a regular file inside one of the directories in <code>POLICY_FILES_DIRECTORIES</code>, after symbolic links and <code>..</code> are resolved, and no larger than <code>POLICY_FILES_MAX_BYTES</code>. With <code>POLICY_FILES_DIRECTORIES</code> unset, the default, a policy may name no file. A policy naming any other file is refused with <code>400 Bad Request</code> when it is saved, and before a redaction or asynchronous submission uses it. The message is the same whether the file is missing, outside these directories, or not a regular file.</p>
+<p><strong>Put only shared reference data in these directories.</strong> The restriction is per deployment, not per user: anyone who can write a policy can use any file in them. A dictionary turns a file's lines into terms whose presence a redaction reveals, and <code>MAP_REPLACE</code> returns a mapping file's values outright. Never put secrets or one user's private data there. For terms that belong to one user, use <a href="redaction/custom_lists.html">custom lists</a>, which are stored per user and encrypted.</p>
+<p>In Docker, mount a directory, read-only, and name it:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">philter</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">POLICY_FILES_DIRECTORIES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/philter/policy-files</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./policy-files:/opt/philter/policy-files:ro</span>
+</code></pre></div>
+<h3 id="environment-variables-in-a-policy">Environment variables in a policy</h3>
+<p>A policy's <code>crypto</code> and <code>fpe</code> keys can name an environment variable as <code>env:NAME</code> instead of holding the key itself, so the key is not stored in the policy. Philter reads that variable, so the variables a policy may name are the operator's decision: a policy may name only a variable in <code>POLICY_ALLOWED_ENV_KEYS</code>, and with it unset, the default, no variable. A policy naming any other variable is refused with <code>400 Bad Request</code> when it is saved, before a redaction or asynchronous submission uses it, and when <a href="redaction/re-identification.html">re-identification</a> uses it. The variable is not read, so the message is the same whether or not it is set. Philter's own secrets, such as <code>PHILTER_ENCRYPTION_KEY</code>, <code>PHILTER_BOOTSTRAP_API_KEY</code>, <code>CACHE_PASSWORD</code>, <code>MONGODB_CONNECTION_STRING</code>, <code>PHEYE_BEARER_TOKEN</code>, and the TLS store passwords, can never be listed.</p>
+<p><strong>Every policy author can use every listed variable.</strong> The list is per deployment, not per user: anyone who can write a policy can name a listed key and use it to encrypt, or <a href="redaction/re-identification.html">re-identify</a> values encrypted with it. List only keys meant to be shared by everyone who writes policies. A user who needs a key of their own can leave <code>fpe</code> out to use the per-user FPE key Philter manages. <code>crypto</code> has no per-user key: a <code>CRYPTO_REPLACE</code> key not shared through this list must be written into the policy, where it is stored in the clear (see <a href="database.html#what-is-encrypted-at-rest">what is encrypted at rest</a>).</p>
+<div class="highlight"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">philter</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">POLICY_ALLOWED_ENV_KEYS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PHILTER_CRYPTO_KEY,PHILTER_FPE_KEY,PHILTER_FPE_TWEAK</span>
+<span class="w">      </span><span class="nt">PHILTER_CRYPTO_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;64 hex characters&gt;</span>
+</code></pre></div>
+<h2 id="output-signing">Output Signing</h2>
+<p>Philter can sign <code>POST /api/filter</code> (text) and <code>POST /api/explain</code> responses with an ES256 JWT in the <code>X-Philter-Signature</code> response header. Signing is <strong>disabled by default</strong>; enable it with the <a href="api_and_sdks/api/settings_api.html">Settings API</a>. See <a href="output_signing.html">Output Signing</a> for full documentation.</p>
+<table>
+<thead>
+<tr>
+<th>Environment Variable</th>
+<th>Description</th>
+<th>Default Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PHILTER_SIGNING_KEY_PATH</code></td>
+<td>Absolute path to a PKCS8 PEM private key file (<code>BEGIN PRIVATE KEY</code> format) to use instead of the auto-generated key stored in the database. When set, the file is read on startup; the stored signing key is not used. The file must be accessible on every node. Leave unset to let Philter generate and manage the key automatically.</td>
+<td>(none; auto-generate)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pii-drift-monitoring-phield">PII Drift Monitoring (Phield)</h2>
+<p>Philter can optionally publish per-redaction <strong>PII type counts</strong> to a <a href="https://github.com/philterd/phield">Phield</a> drift monitor. Only counts and the source, organization, and context labels are sent; the redacted text and its replacements never leave Philter. This is configured with the <a href="api_and_sdks/api/settings_api.html">Settings API</a> (enable, Phield URL, source id, organization, and the API key Phield requires when it is run with <code>PHIELD_API_KEY</code> set), not via environment variables. See <a href="phield.html">PII Drift Monitoring with Phield</a>.</p>
+<h3 id="bootstrap-and-in-memory-capacity">Bootstrap and in-memory capacity</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Behavior</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PHILTER_BOOTSTRAP_API_KEY</code></td>
+<td>Required on first start; see <a href="#api-access">API Access</a>. <code>compose.sh</code> generates it in <code>.env</code>.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>IN_MEMORY_CACHE_MAX_ENTRIES</code></td>
+<td>Positive maximum across strings, hash containers, and hash fields.</td>
+<td><code>100000</code></td>
+</tr>
+<tr>
+<td><code>IN_MEMORY_CACHE_MAX_BYTES</code></td>
+<td>Positive maximum accounted retained cache size, including conservative object overhead and UTF-16 string data. This is not a JVM heap limit.</td>
+<td><code>67108864</code></td>
+</tr>
+</tbody>
+</table>
+<p>At capacity, ordinary cache insertions are skipped and unsuccessful refreshes discard stale values. Expiry and deletion release capacity.</p>
+<h2 id="async-queue-admission">Async queue admission</h2>
+<p>All limits must be positive and identical across instances. Limits count PENDING and PROCESSING jobs and their input bytes; terminal jobs release capacity.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ASYNC_QUEUE_MAX_JOBS</code></td>
+<td><code>256</code></td>
+<td>Global active jobs</td>
+</tr>
+<tr>
+<td><code>ASYNC_QUEUE_MAX_USER_JOBS</code></td>
+<td><code>32</code></td>
+<td>Active jobs per account</td>
+</tr>
+<tr>
+<td><code>ASYNC_QUEUE_MAX_BYTES</code></td>
+<td><code>2147483648</code></td>
+<td>Global active input bytes</td>
+</tr>
+<tr>
+<td><code>ASYNC_QUEUE_MAX_USER_BYTES</code></td>
+<td><code>268435456</code></td>
+<td>Active input bytes per account</td>
+</tr>
+</tbody>
+</table>
+<p>Owner capacity returns HTTP 429; global capacity and admission contention return HTTP 503. Both include <code>Retry-After: 5</code>. Admission is serialized through the database, so instances sharing MongoDB cannot together exceed the limits. Claims interleave account scheduling rounds, with submission time breaking ties. Within an account, documents submitted with different <a href="api_and_sdks/api/filtering_api.html#fairness-keys">fairness keys</a> take turns. Micrometer exposes <code>philter.async.queue.jobs</code>, <code>philter.async.queue.bytes</code>, and <code>philter.async.queue.oldest.seconds</code>. Retained results are separate from active queue capacity.</p>
+<p>An interrupted or ambiguous admission retains its guard and blocks further submissions with 503. It does not expire automatically. With SQLite storage, Philter clears it when it next starts, since only a Philter that has stopped can have left it held, and records <code>storage_guard_recovered</code> in the audit log. With MongoDB, recover it by hand: quiesce <strong>all admission writers and their outstanding database operations</strong>, inspect the job insertion outcome, then conditionally unset <code>token</code> and <code>started_at</code> in <code>queue_admission</code> for <code>_id: "queue"</code>, matching the observed token. Never clear a guard while its writer may still insert. Resume writers only after resolving that operation; capacity is recomputed from stored active jobs.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://www.philterd.ai" target="_blank" rel="noopener" title="Philterd Home Page" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5 5 5 0 0 0-5-5"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://www.github.com/philterd" target="_blank" rel="noopener" title="Philterd on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://www.linkedin.com/company/philterd" target="_blank" rel="noopener" title="Philterd on LinkedIn" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="mailto:support@philterd.ai" target="_blank" rel="noopener" title="Email Us" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M536.4-26.3c9.8-3.5 20.6-1 28 6.3s9.8 18.2 6.3 28l-178 496.9c-5 13.9-18.1 23.1-32.8 23.1-14.2 0-27-8.6-32.3-21.7l-64.2-158c-4.5-11-2.5-23.6 5.2-32.6l94.5-112.4c5.1-6.1 4.7-15-.9-20.6s-14.6-6-20.6-.9l-112.4 94.3c-9.1 7.6-21.6 9.6-32.6 5.2L38.1 216.8c-13.1-5.3-21.7-18.1-21.7-32.3 0-14.7 9.2-27.8 23.1-32.8z"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+      <div class="md-consent" data-md-component="consent" id="__consent" hidden="">
+        <div class="md-consent__overlay"></div>
+        <aside class="md-consent__inner">
+          <form class="md-consent__form md-grid md-typeset" name="consent">
+            
+
+
+  
+
+
+<h4>Cookie consent</h4>
+<p>We use cookies to recognize your repeated visits and preferences, as well as to measure the effectiveness of our documentation and whether users find what they're searching for. With your consent, you're helping us to make our documentation better.</p>
+<input class="md-toggle" type="checkbox" id="__settings">
+<div class="md-consent__settings">
+  <ul class="task-list">
+    
+    
+      
+    
+    
+      
+        
+  
+  
+    
+    
+  
+  <li class="task-list-item">
+    <label class="task-list-control">
+      <input type="checkbox" name="github" checked="">
+      <span class="task-list-indicator"></span>
+      GitHub
+    </label>
+  </li>
+
+      
+    
+    
+  </ul>
+</div>
+<div class="md-consent__controls">
+  
+    
+      <button class="md-button md-button--primary">Accept</button>
+    
+    
+    
+  
+    
+    
+    
+      <label class="md-button" for="__settings">Manage settings</label>
+    
+  
+</div>
+          </form>
+        </aside>
+      </div>
+      <script>var consent=__md_get("__consent");if(consent)for(var input of document.forms.consent.elements)input.name&&(input.checked=consent[input.name]||!1);else"file:"!==location.protocol&&setTimeout((function(){document.querySelector("[data-md-component=consent]").hidden=!1}),250);var form=document.forms.consent;for(var action of["submit","reset"])form.addEventListener(action,(function(e){if(e.preventDefault(),"reset"===e.type)for(var n of document.forms.consent.elements)n.name&&(n.checked=!1);__md_set("__consent",Object.fromEntries(Array.from(new FormData(form).keys()).map((function(e){return[e,!0]})))),location.hash="",location.reload()}))</script>
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

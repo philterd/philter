@@ -9,7 +9,7 @@ Here’s a brief [screencast](https://youtu.be/E5eMC1DFw5Q) showing how to launc
 ## Launch Philter in AWS
 
 1. Go to [Philter in the AWS Marketplace](https://aws.amazon.com/marketplace/pp/B07YVB8FFT?ref=_ptnr_mf_launch). On this page you can see the Philter overview, the pricing, and the supported EC2 instance types.
-2. Select an instance type. We recommend `m5.large`. The smaller instance types are intended only for testing and are not well-suited for production usage.
+2. Select an instance type. We recommend `c7i.xlarge`. The smaller instance types are intended only for testing and are not well-suited for production usage.
 3. Click the **Continue to Subscribe** button.
 4. View and accept Philter’s license agreement. Then click **Accept Terms**.
 5. The subscription will now be created and you will be notified when it is ready! This usually only takes less than a minute.

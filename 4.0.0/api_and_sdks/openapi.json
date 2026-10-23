@@ -3734,7 +3734,7 @@
             }
           },
           "409": {
-            "description": "Notification reconciliation is pending.",
+            "description": "The document is processing, or notification reconciliation is pending.",
             "content": {
               "text/plain": {
                 "schema": {

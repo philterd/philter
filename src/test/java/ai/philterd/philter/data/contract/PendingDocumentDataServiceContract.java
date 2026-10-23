@@ -297,6 +297,29 @@ public interface PendingDocumentDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void pendingDocumentAProcessingDocumentIsNotDeleted() {
+        final String owner = RecordIds.newId();
+        final String documentId = submit(owner, new byte[]{1});
+        final PendingDocumentEntity claim = storage().pendingDocuments().claimNextPending("worker");
+
+        final QueueCapacityException processing = assertThrows(QueueCapacityException.class,
+                () -> storage().pendingDocuments().deleteByDocumentIdAndUserId(documentId, owner));
+        assertEquals(409, processing.getStatus(), "not deleted while a worker holds it");
+        assertTrue(storage().pendingDocuments().beginPublication(claim.getId(), claim.getClaimToken()),
+                "the worker can still publish its result");
+
+        final QueueCapacityException publishing = assertThrows(QueueCapacityException.class,
+                () -> storage().anotherInstance().pendingDocuments().deleteByDocumentIdAndUserId(documentId, owner));
+        assertEquals(409, publishing.getStatus(), "nor while it publishes, from any instance");
+        assertTrue(storage().pendingDocuments().markComplete(claim.getId(), owner, claim.getClaimToken(), new byte[]{9}));
+
+        storage().pendingDocuments().acknowledgeNotification(claim.getId());
+        assertEquals(1, storage().pendingDocuments().deleteByDocumentIdAndUserId(documentId, owner),
+                "deleted once it has finished");
+        assertNull(storage().pendingDocuments().findOneByDocumentIdAndUserId(documentId, owner));
+    }
+
+    @Test
     default void pendingDocumentTheQueueLimitsAreEnforcedAndOwnersTakeTurns() {
         try (MockedStatic<EnvUtils> env = mockStatic(EnvUtils.class, CALLS_REAL_METHODS)) {
             env.when(() -> EnvUtils.getInt("ASYNC_QUEUE_MAX_USER_JOBS", 32)).thenReturn(2);

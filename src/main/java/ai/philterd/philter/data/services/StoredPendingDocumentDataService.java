@@ -139,8 +139,14 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
      */
     protected abstract boolean fail(final String id, final String claimToken, final String errorMessage, final Date now);
 
-    /** Deletes the owner's documents with this id whose notification is not pending, and returns how many. */
+    /**
+     * Deletes the owner's documents with this id that are not processing and whose notification is not pending, and
+     * returns how many.
+     */
     protected abstract long deleteNotified(final String documentId, final String userId);
+
+    /** Whether the owner has a document with this id that a worker is processing. */
+    protected abstract boolean isProcessing(final String documentId, final String userId);
 
     /** Whether the owner has a document with this id whose notification is pending. */
     protected abstract boolean hasPendingNotification(final String documentId, final String userId);
@@ -206,8 +212,15 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
     @Override
     public long deleteByDocumentIdAndUserId(final String documentId, final String userId) {
         final long deleted = deleteNotified(documentId, userId);
-        if (deleted == 0 && hasPendingNotification(documentId, userId)) {
-            throw new QueueCapacityException("Notification dispatch is pending. Retry deletion later.", 409);
+        if (deleted == 0) {
+            // A worker publishing a document's result fences on its row, so deleting it underneath the worker would
+            // fail the job. A queued document can still be deleted: no worker has claimed it.
+            if (isProcessing(documentId, userId)) {
+                throw new QueueCapacityException("The document is processing. Retry deletion once it has finished.", 409);
+            }
+            if (hasPendingNotification(documentId, userId)) {
+                throw new QueueCapacityException("Notification dispatch is pending. Retry deletion later.", 409);
+            }
         }
         return deleted;
     }

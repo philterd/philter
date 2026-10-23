@@ -131,7 +131,7 @@ public class ApiDocumentationConfig {
             headers(filter, "202", "Location", "X-Effective-Configuration-SHA256");
             retry(filter, "429", "Account async queue capacity reached.");
             retry(filter, "503", "Global queue capacity reached, admission contention wait (500 ms) exhausted, or recovery required.");
-            retry(op(api, "/api/documents/{documentId}", "delete"), "409", "Notification reconciliation is pending.");
+            retry(op(api, "/api/documents/{documentId}", "delete"), "409", "The document is processing, or notification reconciliation is pending.");
             final Operation download = op(api, "/api/documents/{documentId}", "get");
             response(download, "200", "Completed result bytes.", content("application/pdf", new BinarySchema())
                     .addMediaType("application/zip", new MediaType().schema(new BinarySchema())));

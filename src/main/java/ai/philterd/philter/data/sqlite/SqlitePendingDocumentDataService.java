@@ -282,7 +282,15 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
     @Override
     protected long deleteNotified(final String documentId, final String userId) {
         return database.write(connection -> (long) Sql.update(connection, "DELETE FROM pending_documents WHERE document_id = ? "
-                + "AND user_id = ? AND notification_pending = 0", documentId, userId));
+                + "AND user_id = ? AND notification_pending = 0 AND status <> ?", documentId, userId,
+                PendingDocumentEntity.STATUS_PROCESSING));
+    }
+
+    @Override
+    protected boolean isProcessing(final String documentId, final String userId) {
+        return database.read(connection -> Sql.count(connection, "SELECT COUNT(*) AS n FROM pending_documents WHERE "
+                + "document_id = ? AND user_id = ? AND status = ?", documentId, userId,
+                PendingDocumentEntity.STATUS_PROCESSING) > 0);
     }
 
     @Override

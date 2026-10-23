@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is the source of truth for 4.0.0 and later: record every release entry here.
 [RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
+## [Unreleased]
+
+### Changed
+
+- `DELETE /api/documents/{documentId}` returns `409 Conflict` with `Retry-After: 5` while the document is
+  `PROCESSING`, instead of deleting it underneath the worker, which then failed the job and logged an error.
+  A `PENDING` document can still be deleted.
+
 ## [4.0.0] - 2026-10-23
 
 Major release, the first since 3.4.0. Philter is now API-only and runs on Java 25, Spring Boot 4, and

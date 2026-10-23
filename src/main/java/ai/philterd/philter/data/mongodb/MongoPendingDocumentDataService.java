@@ -328,7 +328,14 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
 
     @Override
     protected long deleteNotified(final String documentId, final String userId) {
-        return jobs.deleteMany(Filters.and(owned(documentId, userId), Filters.ne("notification_pending", true))).getDeletedCount();
+        return jobs.deleteMany(Filters.and(owned(documentId, userId), Filters.ne("notification_pending", true),
+                Filters.ne("status", PendingDocumentEntity.STATUS_PROCESSING))).getDeletedCount();
+    }
+
+    @Override
+    protected boolean isProcessing(final String documentId, final String userId) {
+        return jobs.countDocuments(Filters.and(owned(documentId, userId),
+                Filters.eq("status", PendingDocumentEntity.STATUS_PROCESSING))) > 0;
     }
 
     @Override

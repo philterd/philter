@@ -48,7 +48,7 @@ An asynchronous redaction is the only place Philter keeps a whole document. The 
 | The redacted document | You delete it with `DELETE /api/documents/{documentId}`, or its record expires. Downloading it does not remove it. |
 | The record: status, error, file name, policy, and the configuration captured for the job | You delete it, or `PENDING_DOCUMENTS_TTL_SECONDS` (default 7 days) after the job finished and its notification was queued. |
 
-Deleting a document removes its whole record at once, including a job that has not run yet. Expiry is applied by a TTL index with MongoDB, whose background task runs about once a minute, and by a check every minute with SQLite, so a record can outlast its retention period by a short time, longer when the database is busy. Download the result and delete it as soon as you have it to keep it for the least time.
+Deleting a document removes its whole record at once, including a job that has not run yet. A document that is processing cannot be deleted until it completes or fails. Expiry is applied by a TTL index with MongoDB, whose background task runs about once a minute, and by a check every minute with SQLite, so a record can outlast its retention period by a short time, longer when the database is busy. Download the result and delete it as soon as you have it to keep it for the least time.
 
 When the document's context has the [redaction ledger](../../redaction/ledgers.md) on, the ledger also records the original value of each redacted span, encrypted. Deleting the document or its expiry does not remove those entries; see [How and When Ledger Entries Are Deleted](../../redaction/ledgers.md#how-and-when-ledger-entries-are-deleted).
 
@@ -143,7 +143,7 @@ curl -k -H "Authorization: Bearer <token>" \
 |----------|-----------------------------------|---------------------------------------------------|
 | `DELETE` | `/api/documents/{documentId}`     | Remove the record and any stored redacted bytes.  |
 
-Returns `204 No Content` on success, `404 Not Found` if no document with that id exists for the calling user.
+Returns `204 No Content` on success, `404 Not Found` if no document with that id exists for the calling user, and `409 Conflict` with `Retry-After: 5` while the document is `PROCESSING` or its webhook notification has not yet been sent. A `PENDING` document, which no worker has started, can be deleted.
 
 ```bash
 curl -X DELETE -k -H "Authorization: Bearer <token>" \
@@ -169,4 +169,4 @@ Async submission freezes the resolved policy, custom-list contents, managed FPE 
 
 Admission limits active jobs and input bytes globally and per account; see [queue settings](../../settings.md#async-queue-admission). Owner limits return 429, and global limits or admission contention return 503, with `Retry-After: 5`.
 
-A failed status response includes `error`. A failure you can act on, such as a policy Philter cannot load or a context that no longer exists, keeps its message. Any other failure, such as a document that cannot be parsed or a model service that cannot be reached, is reported as `The redaction failed. An administrator can find the cause in Philter's log by the document ID.`, because its underlying message can name internal hosts and other details of the deployment. Philter logs the full error with the document ID. For example: `{"documentId":"example","status":"FAILED","error":"The redaction failed. An administrator can find the cause in Philter's log by the document ID."}`. Status also returns the captured `effectiveConfigurationHash` when present. Deletion returns 409 with `Retry-After: 5` while notification reconciliation is pending, in addition to the 200 and 404 outcomes above.
+A failed status response includes `error`. A failure you can act on, such as a policy Philter cannot load or a context that no longer exists, keeps its message. Any other failure, such as a document that cannot be parsed or a model service that cannot be reached, is reported as `The redaction failed. An administrator can find the cause in Philter's log by the document ID.`, because its underlying message can name internal hosts and other details of the deployment. Philter logs the full error with the document ID. For example: `{"documentId":"example","status":"FAILED","error":"The redaction failed. An administrator can find the cause in Philter's log by the document ID."}`. Status also returns the captured `effectiveConfigurationHash` when present. Deletion returns 409 with `Retry-After: 5` while the document is processing or notification reconciliation is pending, in addition to the 204 and 404 outcomes above.

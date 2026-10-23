@@ -96,6 +96,10 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
 
 ### Changed
 
+- **Date strategies transform day-first dates and two-digit years.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now
+  transform day-first numeric dates such as `25/12/1980`, which were redacted, and read a two-digit year as the most
+  recent year ending in those digits that is not after the current year, so `RELATIVE` describes `3/27/65` as about
+  61 years ago rather than about 1,961. See [Dates](docs/docs/policies/filters/common_filters/dates.md).
 - **Dates abbreviated `Sept` are detected.** `Sept 3, 2020`, `3 Sept 2020`, and other dates using the `Sept`
   abbreviation were left in the output; they are now redacted, and the date strategies transform them.
 - **Date strategies transform dates written with a month name.** `TRUNCATE_TO_YEAR`, `SHIFT`, and `RELATIVE` now

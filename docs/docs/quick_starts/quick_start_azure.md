@@ -12,7 +12,7 @@ Philter on Microsoft Azure is a virtual machine-based product. A free trial peri
 3. Review the information that is shown on the popup and click **Continue** when ready.
 4. You will now be asked to log in to your Microsoft Azure account if you were not already logged in.
 5. Click the **Create** button to begin making a Philter virtual machine.
-6. Enter the required details of the virtual machine and click the **Review + create** button.
+6. Enter the required details of the virtual machine and click the **Review + create** button. We recommend the `Standard_F4s_v2` size (4 vCPUs, 8 GB of RAM). Smaller sizes are intended only for testing and are not well-suited for production usage. See [System Requirements](../system_requirements.md) for the minimum and recommended resources.
 7. Review the virtual machine details and click **Create** when ready!
 
 Your Philter virtual machine will now be launching.

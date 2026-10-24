@@ -14,7 +14,7 @@ Philter on Google Cloud is a virtual machine-based product. A free trial period 
 
 **Virtual Machine Recommendations**
 
-The general purpose machine type is n2-standard-2 and this machine type should be adequate for most use-cases. See [System Requirements](../system_requirements.md) for the minimum and recommended resources.
+We recommend the `c3-highcpu-4` machine type (4 vCPUs, 8 GB of RAM). Smaller machine types are intended only for testing and are not well-suited for production usage. See [System Requirements](../system_requirements.md) for the minimum and recommended resources.
 
 > Google Cloud will automatically open ports `22` (SSH) and `8080` (Philter API). These ports are required to be open but you may want to modify the security groups to limit their scope of availability by restricting access to specific CIDR ranges.
 

@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -30,10 +30,10 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -4012,7 +4012,7 @@
 
 
 <h1 id="differential-privacy-reporting-with-philter-diffuse">Differential-Privacy Reporting with Philter Diffuse</h1>
-<p><a href="https://github.com/philterd/philterdiffuse">Philter Diffuse</a> applies differential privacy (using <a href="https://github.com/opendp/opendp">OpenDP</a>) to aggregate PII counts, producing compliance-ready reports with a tracked privacy budget. Philter can optionally record the PII type counts from its redactions so that Diffuse can privatize and report on them.</p>
+<p><a href="https://github.com/philterd/philter-diffuse">Philter Diffuse</a> applies differential privacy (using <a href="https://github.com/opendp/opendp">OpenDP</a>) to aggregate PII counts, producing compliance-ready reports with a tracked privacy budget. Philter can optionally record the PII type counts from its redactions so that Diffuse can privatize and report on them.</p>
 <p>When this is enabled, after each redaction Philter records <strong>counts only</strong>, never any PII.</p>
 <h2 id="what-philter-records">What Philter records</h2>
 <p>Philter writes aggregated, time-bucketed <strong>document-presence</strong> counts to <code>pii_count_aggregates</code> in its database, one record per user's <code>(context, day)</code>. As MongoDB stores it:</p>
@@ -4026,7 +4026,7 @@
 <span class="p">}</span>
 </code></pre></div>
 <p>For each redaction that finds PII, every distinct PII type present increments that type's counter by one, and <code>total_documents</code> increments by one. A redaction that finds no PII is not recorded, so <code>total_documents</code> counts documents that contained PII, not all documents redacted. <code>counts.ssn</code> is the number of <strong>documents</strong> in that day's bucket (for that context) that contained at least one SSN.</p>
-<p>This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which preserves the <code>sensitivity = 1</code> assumption that Diffuse's differential-privacy guarantee depends on. (Counting the total number of SSN spans instead would let a single document contribute many, which would weaken the privacy guarantee Diffuse reports.)</p>
+<p>This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which bounds how much one document can change the counts that Diffuse's differential-privacy guarantee is calculated from. A redaction can still contribute to several types at once, so Diffuse charges each report for every type it releases. (Counting the total number of SSN spans instead would let a single document contribute many to one count, which would weaken the privacy guarantee Diffuse reports.)</p>
 <p>Because the counts are bucketed per user's <code>(context, day)</code>, the collection stays small regardless of redaction volume, so no retention TTL is required.</p>
 <h2 id="reading-the-counts-through-the-api">Reading the counts through the API</h2>
 <p>The <a href="api_and_sdks/api/pii_counts_api.html">PII Counts API</a> (<code>GET /api/pii-counts</code>) returns the same counts with an API key, so a reader needs no access to Philter's database and does not depend on how Philter stores them. Each entry gives an <code>id</code>, a UTC day, the count for each PII type, and <code>totalDocuments</code>, and the context and its owner when the reader may see them. Narrow it by day range and context, and page through it with <code>offset</code> and <code>limit</code>. It requires an administrator and the <code>pii-counts:read</code> scope, and each read is recorded in the audit log.</p>
@@ -4042,7 +4042,7 @@
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">PHILTER_API_KEY</span><span class="o">=</span>&lt;api<span class="w"> </span>key&gt;
 python<span class="w"> </span>main.py<span class="w"> </span>--philter-url<span class="w"> </span>https://localhost:8080<span class="w"> </span>--aggregates<span class="w"> </span>--output<span class="w"> </span>privatized_counts.csv
 </code></pre></div>
-<p>Add <code>--context &lt;name&gt;</code> to restrict the report to a single context, and <code>--from</code> and <code>--to</code> (UTC days, <code>YYYY-MM-DD</code>) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with <code>--philter-ca-cert</code> (see <a href="settings.html#tls">TLS</a>). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the <a href="https://philterd.github.io/philterdiffuse">Philter Diffuse documentation</a> for the privacy budget, scale/epsilon options, and report formats.</p>
+<p>Add <code>--context &lt;name&gt;</code> to restrict the report to a single context, and <code>--from</code> and <code>--to</code> (UTC days, <code>YYYY-MM-DD</code>) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with <code>--philter-ca-cert</code> (see <a href="settings.html#tls">TLS</a>). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the <a href="https://philterd.github.io/philter-diffuse/">Philter Diffuse documentation</a> for the privacy budget, scale/epsilon options, and report formats.</p>
 <p>Diffuse can still read the <code>pii_count_aggregates</code> collection directly from Philter's MongoDB (<code>--mongo-uri "mongodb://localhost:27017/philter" --aggregates</code>, with <code>STORAGE_TYPE=mongodb</code>), but that path is deprecated in Philter Diffuse and will be removed.</p>
 
 
@@ -4189,10 +4189,10 @@ python<span class="w"> </span>main.py<span class="w"> </span>--philter-url<span 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate"], "search": "assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   

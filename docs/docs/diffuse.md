@@ -1,6 +1,6 @@
 # Differential-Privacy Reporting with Philter Diffuse
 
-[Philter Diffuse](https://github.com/philterd/philterdiffuse) applies differential privacy (using [OpenDP](https://github.com/opendp/opendp)) to aggregate PII counts, producing compliance-ready reports with a tracked privacy budget. Philter can optionally record the PII type counts from its redactions so that Diffuse can privatize and report on them.
+[Philter Diffuse](https://github.com/philterd/philter-diffuse) applies differential privacy (using [OpenDP](https://github.com/opendp/opendp)) to aggregate PII counts, producing compliance-ready reports with a tracked privacy budget. Philter can optionally record the PII type counts from its redactions so that Diffuse can privatize and report on them.
 
 When this is enabled, after each redaction Philter records **counts only**, never any PII.
 
@@ -21,7 +21,7 @@ Philter writes aggregated, time-bucketed **document-presence** counts to `pii_co
 
 For each redaction that finds PII, every distinct PII type present increments that type's counter by one, and `total_documents` increments by one. A redaction that finds no PII is not recorded, so `total_documents` counts documents that contained PII, not all documents redacted. `counts.ssn` is the number of **documents** in that day's bucket (for that context) that contained at least one SSN.
 
-This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which preserves the `sensitivity = 1` assumption that Diffuse's differential-privacy guarantee depends on. (Counting the total number of SSN spans instead would let a single document contribute many, which would weaken the privacy guarantee Diffuse reports.)
+This "document-presence" counting is deliberate: it ensures each redaction contributes at most one to any count, which bounds how much one document can change the counts that Diffuse's differential-privacy guarantee is calculated from. A redaction can still contribute to several types at once, so Diffuse charges each report for every type it releases. (Counting the total number of SSN spans instead would let a single document contribute many to one count, which would weaken the privacy guarantee Diffuse reports.)
 
 Because the counts are bucketed per user's `(context, day)`, the collection stays small regardless of redaction volume, so no retention TTL is required.
 
@@ -51,6 +51,6 @@ export PHILTER_API_KEY=<api key>
 python main.py --philter-url https://localhost:8080 --aggregates --output privatized_counts.csv
 ```
 
-Add `--context <name>` to restrict the report to a single context, and `--from` and `--to` (UTC days, `YYYY-MM-DD`) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with `--philter-ca-cert` (see [TLS](settings.md#tls)). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philterdiffuse) for the privacy budget, scale/epsilon options, and report formats.
+Add `--context <name>` to restrict the report to a single context, and `--from` and `--to` (UTC days, `YYYY-MM-DD`) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with `--philter-ca-cert` (see [TLS](settings.md#tls)). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philter-diffuse/) for the privacy budget, scale/epsilon options, and report formats.
 
 Diffuse can still read the `pii_count_aggregates` collection directly from Philter's MongoDB (`--mongo-uri "mongodb://localhost:27017/philter" --aggregates`, with `STORAGE_TYPE=mongodb`), but that path is deprecated in Philter Diffuse and will be removed.

@@ -19,7 +19,7 @@ import java.util.Set;
 
 /**
  * Records aggregated, time-bucketed PII type counts for downstream differential-privacy
- * reporting with <a href="https://github.com/philterd/philterdiffuse">Philter Diffuse</a>.
+ * reporting with <a href="https://github.com/philterd/philter-diffuse">Philter Diffuse</a>.
  *
  * <p>Counts are <strong>document-presence</strong> counts: for each redaction, every distinct PII
  * type present increments that type's counter by one in the day's bucket for the user's context. Counts are kept per

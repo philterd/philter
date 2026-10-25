@@ -6,6 +6,11 @@ on:
   # Lets this workflow be exercised without cutting a release. It otherwise only runs on a version
   # tag, so a change to it (an action upgrade, say) would first be tested during a release, which is
   # the worst time to find out it is broken.
+  #
+  # It also republishes a released version's docs with corrections made after its tag: run it with
+  # that version (for example 4.0.0) on a branch cut from the tag with the fixes cherry-picked, not on
+  # main, whose docs describe the next version (its openapi.json carries the -SNAPSHOT version). The
+  # 'latest' alias is a symlink to the version's directory, so it picks up the republished docs.
   workflow_dispatch:
     inputs:
       version:

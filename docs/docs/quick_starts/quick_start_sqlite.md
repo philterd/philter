@@ -40,6 +40,8 @@ API_KEY=$(grep PHILTER_BOOTSTRAP_API_KEY .env | cut -d= -f2)
 curl -k "https://localhost:8080/api/filter" --data "His SSN was 123-45-6789." -H "Content-type: text/plain" -H "Authorization: Bearer $API_KEY"
 ```
 
+The first request after Philter starts loads the person-name model and takes a few seconds. Later requests are fast.
+
 Philter serves HTTPS with a self-signed certificate, so `curl` needs `-k`. See [TLS](../settings.md#tls).
 
 ## Next steps

@@ -86,7 +86,7 @@ Philter uses a built-in in-memory cache by default and can be configured to use 
 Released versions are published to Docker Hub as [`philterd/philter`](https://hub.docker.com/r/philterd/philter/tags), tagged by version. There is no `latest` tag, so name the version you want:
 
 ```
-docker pull philterd/philter:4.0.0
+docker pull philterd/philter:4.0.1
 ```
 
 The `docker-compose.yml` in this repository builds the image from source instead, so it runs the code on your current branch.

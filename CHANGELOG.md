@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is the source of truth for 4.0.0 and later: record every release entry here.
 [RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
+## [4.0.1] - 2026-11-02
+
+Security update. No behavior changes; still Java 25 and Phileas 4.5.0.
+
+### Security
+
+- **Docker image:** rebuilt on current Ubuntu 24.04 packages, which updates `libbrotli1` to
+  `1.1.0-2ubuntu0.1` for CVE-2026-111497.
+- **Jackson:** Spring Boot 4.1.2 updates Jackson to 2.21.7 and 3.1.7 for CVE-2026-89407, CVE-2026-89425,
+  CVE-2026-68497, CVE-2026-91776, and CVE-2026-91777, denial-of-service issues in JSON parsing.
+
 ## [4.0.0] - 2026-10-23
 
 Major release, the first since 3.4.0. Philter is now API-only and runs on Java 25, Spring Boot 4, and
@@ -353,4 +364,5 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   the live checks on the key, so a key could use endpoints outside its scopes and a deactivated user's key or a
   restricted session key kept working.
 
+[4.0.1]: https://github.com/philterd/philter/releases/tag/4.0.1
 [4.0.0]: https://github.com/philterd/philter/releases/tag/4.0.0

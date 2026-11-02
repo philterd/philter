@@ -93,3 +93,7 @@ second run with `-DskipSqliteITs=true`.
 
 When you add a guarantee to an interface, add a test for it to that interface's contract, so every
 implementation is tested for it.
+
+## Licensing and sign-off
+
+This project is licensed under [Apache 2.0](LICENSE.txt), and contributions are accepted under the same license. Sign off every commit with `git commit -s` to certify the [Developer Certificate of Origin](https://developercertificate.org/); a required check enforces it. See the [Philterd contributing guide](https://github.com/philterd/.github/blob/main/CONTRIBUTING.md#licensing-and-sign-off) for how to sign off commits you have already made.

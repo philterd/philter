@@ -9,7 +9,7 @@
     </parent>
     <artifactId>philter</artifactId>
     <groupId>ai.philterd</groupId>
-    <version>4.0.1</version>
+    <version>4.1.0-SNAPSHOT</version>
     <name>philter</name>
     <url>https://www.philterd.ai</url>
     <description>Philter identifies and removes sensitive information in natural language text.</description>
@@ -86,7 +86,7 @@
         <jedis-mock.version>1.1.11</jedis-mock.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <mongodb.version>5.13.0</mongodb.version>
-        <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
+        <sqlite-jdbc.version>3.54.1.0</sqlite-jdbc.version>
         <skipSqliteITs>false</skipSqliteITs>
         <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
         <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT,ModelsApiIT,CrossOriginResourcePolicyIT</sqlite.it.test>

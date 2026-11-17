@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is the source of truth for 4.0.0 and later: record every release entry here.
 [RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
+## [4.0.2] - 2026-11-17
+
+Dependency update. No behavior changes; still Java 25 and Phileas 4.5.0.
+
+### Changed
+
+- **Dependencies:** Jackson 3.1.8 and 2.21.8, Tomcat 11.0.29, Bouncy Castle 1.87, Apache HttpCore 5.4.4,
+  the MongoDB Java driver 5.14.0, and SQLite JDBC 3.54.1.0.
+
 ## [4.0.1] - 2026-11-02
 
 Security update. No behavior changes; still Java 25 and Phileas 4.5.0.
@@ -364,5 +373,6 @@ Phileas 4.5. See [Upgrading](docs/docs/upgrading.md) for migration steps.
   the live checks on the key, so a key could use endpoints outside its scopes and a deactivated user's key or a
   restricted session key kept working.
 
+[4.0.2]: https://github.com/philterd/philter/releases/tag/4.0.2
 [4.0.1]: https://github.com/philterd/philter/releases/tag/4.0.1
 [4.0.0]: https://github.com/philterd/philter/releases/tag/4.0.0

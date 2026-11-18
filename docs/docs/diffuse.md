@@ -48,9 +48,9 @@ Philter Diffuse reads the recorded counts through the [PII Counts API](api_and_s
 
 ```bash
 export PHILTER_API_KEY=<api key>
-python main.py --philter-url https://localhost:8080 --pii-types ssn,email-address,person --output privatized_counts.csv
+python main.py --philter-url https://localhost:8080 --from 2026-09-01 --to 2026-09-30 --pii-types ssn,email-address,person --output privatized_counts.csv
 ```
 
-Add `--context <name>` to restrict the report to a single context, and `--from` and `--to` (UTC days, `YYYY-MM-DD`) to restrict it to a range of days. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with `--philter-ca-cert` (see [TLS](settings.md#tls)). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philter-diffuse/) for the privacy budget, scale/epsilon options, and report formats.
+`--from` and `--to` (UTC days, `YYYY-MM-DD`, both inclusive) give the days the report covers. Pass both: releases of Philter Diffuse after `0.1.0` require them and keep the privacy budget per day. Add `--context <name>` to restrict the report to a single context. If recording is turned off, Diffuse says so and writes no report. With the self-signed certificate the Docker image generates, pass that certificate to Diffuse with `--philter-ca-cert` (see [TLS](settings.md#tls)). Diffuse adds calibrated noise, tracks the epsilon (privacy loss) budget, and writes privatized counts. See the [Philter Diffuse documentation](https://philterd.github.io/philter-diffuse/) for the privacy budget, scale/epsilon options, and report formats.
 
 Diffuse can still read the `pii_count_aggregates` collection directly from Philter's MongoDB (`--mongo-uri "mongodb://localhost:27017/philter" --aggregates`, with `STORAGE_TYPE=mongodb`), but that path is deprecated in Philter Diffuse and will be removed.

@@ -67,7 +67,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
-@Tag(name = "Filter", description = "Redact text and PDF documents.")
+@Tag(name = "Filter", description = "Redact text, PDF, Word, and Excel documents.")
 @Controller
 public class FilterApiController extends AbstractApiController {
 
@@ -219,6 +219,99 @@ public class FilterApiController extends AbstractApiController {
 
     }
 
+    /** Word documents. Spring's MediaType has no constant for it. */
+    public static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    /** Excel workbooks. */
+    public static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    @Operation(
+            summary = "Filter a Word document and receive a redacted Word document in return.",
+            description = "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. " +
+                    "Append `?async=false` to receive the redacted document inline (200 OK)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redacted Word document (synchronous path)."),
+            @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+    })
+    @RequiresScope(ApiKeyScope.REDACT)
+    @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = DOCX, consumes = DOCX)
+    public @ResponseBody ResponseEntity<byte[]> filterDocxAsDocx(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @RequestParam(value = "c", defaultValue = "") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            @RequestBody byte[] body) throws Exception {
+
+        LOGGER.info("Received uploaded Word document. async={}", async);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, body, MimeType.APPLICATION_DOCX);
+
+    }
+
+    @Operation(
+            summary = "Filter an Excel workbook and receive a redacted Excel workbook in return.",
+            description = "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. " +
+                    "Append `?async=false` to receive the redacted workbook inline (200 OK)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redacted Excel workbook (synchronous path)."),
+            @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+    })
+    @RequiresScope(ApiKeyScope.REDACT)
+    @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = XLSX, consumes = XLSX)
+    public @ResponseBody ResponseEntity<byte[]> filterXlsxAsXlsx(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @RequestParam(value = "c", defaultValue = "") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            @RequestBody byte[] body) throws Exception {
+
+        LOGGER.info("Received uploaded Excel workbook. async={}", async);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, body, MimeType.APPLICATION_XLSX);
+
+    }
+
+    private ResponseEntity<byte[]> filterOffice(final String authorizationHeader, final String context, final String policyName,
+                                                final boolean async, final String filename, final boolean sign,
+                                                final String fairnessKey, final byte[] body, final MimeType mimeType) throws Exception {
+
+        final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
+
+        if(apiKeyEntity == null) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+
+        rejectSigningRequest(sign);
+        rejectFairnessKey(async, fairnessKey);
+
+        final String userId = apiKeyEntity.getUserId();
+
+        if (async) {
+            return enqueueBinary(userId, body, mimeType, mimeType.getValue(), policyName, context, filename, fairnessKey);
+        }
+
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, mimeType, filename);
+        final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .headers(policyHeaders(outcome.appliedPolicy()))
+                .header(DOCUMENT_ID_HEADER, outcome.documentId())
+                .body(binaryDocumentFilterResult.getDocument());
+
+    }
+
     @Operation(
             summary = "Filter plain text and receive redacted plain text inline.",
             description = "Synchronous. The `async` parameter does not apply to the text endpoint. "
@@ -274,13 +367,13 @@ public class FilterApiController extends AbstractApiController {
     }
 
     /**
-     * PDF responses are not signed yet, so a request asking for a signature is
+     * Document responses are not signed yet, so a request asking for a signature is
      * refused rather than answered with an unsigned response the caller believes is signed.
      */
     private static void rejectSigningRequest(final boolean sign) {
         if (sign) {
             throw new BadRequestException(
-                    "PDF responses cannot be signed. Omit sign, or use the text/plain endpoint.");
+                    "PDF, Word, and Excel responses cannot be signed. Omit sign, or use the text/plain endpoint.");
         }
     }
 
@@ -305,7 +398,12 @@ public class FilterApiController extends AbstractApiController {
                                                  final String outputMimeType, final String policyName, final String contextName,
                                                  final String filename, final String fairnessKey) throws PolicyNotFoundException {
 
-        ai.philterd.philter.services.filtering.PdfInputValidator.validate(body);
+        if (inputMimeType == MimeType.APPLICATION_PDF) {
+            ai.philterd.philter.services.filtering.PdfInputValidator.validate(body);
+        } else {
+            final var officeType = ai.philterd.philter.services.filtering.OfficeInputValidator.declaredType(inputMimeType);
+            ai.philterd.philter.services.filtering.OfficeInputValidator.validate(body, officeType);
+        }
 
         final String documentId = UUID.randomUUID().toString();
 

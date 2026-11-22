@@ -115,7 +115,7 @@ class CurrencyAndStreetAddressFiltersApiIT {
     }
 
     @Test
-    @DisplayName("Amounts with a currency symbol or code are reported; amounts without one are not")
+    @DisplayName("Amounts with a currency symbol, code, or name are reported; amounts without one are not")
     void currency() throws Exception {
         savePolicy("currency", "\"currency\":{\"currencyFilterStrategies\":" + REDACT + "}");
 
@@ -124,7 +124,8 @@ class CurrencyAndStreetAddressFiltersApiIT {
                 redact("currency", "$35.53, \u20ac1.450,00, 250,50 \u00a3, USD 1,234.56, 5000 JPY, 5 eur."));
         assertEquals("Paid {{{REDACTED-currency}}} today.", redact("currency", "Paid $3,450.75 USD today."),
                 "a symbol and a code together are one amount");
-        assertEquals("About 1,450 dollars, 100 CHF, or 100.", redact("currency", "About 1,450 dollars, 100 CHF, or 100."));
+        // CHF needs a comma or period in the number, since it is a word in other contexts.
+        assertEquals("About {{{REDACTED-currency}}}, 100 CHF, or 100.", redact("currency", "About 1,450 dollars, 100 CHF, or 100."));
     }
 
     @Test

@@ -24,6 +24,7 @@ import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CustomDictionary;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
+import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
@@ -112,6 +113,7 @@ public class RedactionService {
     // request passes its own context and vector service to filter(...).
     private final ConcurrentMap<Boolean, PlainTextFilterService> plainTextFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, PdfFilterService> pdfFilterServices = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Boolean, OoxmlFilterService> ooxmlFilterServices = new ConcurrentHashMap<>();
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -207,6 +209,11 @@ public class RedactionService {
     private PdfFilterService pdfFilterService(final boolean disambiguationEnabled) {
         return pdfFilterServices.computeIfAbsent(disambiguationEnabled,
                 flag -> new PdfFilterService(phileasConfigurationCache.get(flag), httpClient));
+    }
+
+    private OoxmlFilterService ooxmlFilterService(final boolean disambiguationEnabled) {
+        return ooxmlFilterServices.computeIfAbsent(disambiguationEnabled,
+                flag -> new OoxmlFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
@@ -424,6 +431,11 @@ public class RedactionService {
             try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
                 filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
             }
+
+        } else if(mimeType == MimeType.APPLICATION_DOCX || mimeType == MimeType.APPLICATION_XLSX) {
+
+            OfficeInputValidator.validate(body, OfficeInputValidator.declaredType(mimeType));
+            filterResult = ooxmlFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, mimeType);
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 

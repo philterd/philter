@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Philter API",
-    "version": "4.0.2"
+    "version": "4.1.0-SNAPSHOT"
   },
   "servers": [
     {
@@ -3860,6 +3860,18 @@
                   "format": "binary"
                 }
               },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
               "application/zip": {
                 "schema": {
                   "type": "string",
@@ -4492,8 +4504,8 @@
         "tags": [
           "Filter"
         ],
-        "summary": "Redact text or a PDF.",
-        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed; sign=true on a PDF request is refused with 400 rather than answered unsigned.",
+        "summary": "Redact text, a PDF, a Word document, or an Excel workbook.",
+        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. A Word document or Excel workbook is returned in its own format. PDF, Word, and Excel default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed; sign=true on a PDF, Word, or Excel request is refused with 400 rather than answered unsigned.",
         "operationId": "filter",
         "parameters": [
           {
@@ -4567,6 +4579,18 @@
                 "format": "binary"
               }
             },
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
             "text/plain": {
               "schema": {
                 "type": "string"
@@ -4579,6 +4603,18 @@
             "description": "Redacted text or synchronous binary result.",
             "content": {
               "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -4629,7 +4665,7 @@
             }
           },
           "202": {
-            "description": "PDF accepted; poll status and download the result.",
+            "description": "Document accepted; poll status and download the result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4674,7 +4710,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.",
+            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, or sign=true on a PDF, Word, or Excel request.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4757,7 +4793,7 @@
             }
           },
           "413": {
-            "description": "Request body, resolved configuration (1 MiB), or encrypted async record exceeds its size limit.",
+            "description": "Request body, resolved configuration (1 MiB), encrypted async record, or a Word or Excel document's decompressed size or entry count exceeds its limit.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4772,7 +4808,7 @@
             }
           },
           "415": {
-            "description": "Unsupported Media Type",
+            "description": "The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20955,16 +20991,16 @@
       "name": "Policy Versions"
     },
     {
+      "description": "Redact text, PDF, Word, and Excel documents.",
+      "name": "Filter"
+    },
+    {
       "description": "Operations for retrieving asynchronously redacted documents.",
       "name": "Documents"
     },
     {
       "description": "Operations for creating and managing custom lists.",
       "name": "Custom Lists"
-    },
-    {
-      "description": "Redact text and PDF documents.",
-      "name": "Filter"
     },
     {
       "description": "Operations for managing an account's always-redact and never-redact term lists.",

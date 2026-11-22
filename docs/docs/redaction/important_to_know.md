@@ -4,7 +4,7 @@ Redaction is a complex process with many variables. To ensure you get the best r
 
 ## Document Metadata is Not Redacted
 
-Philter supports text and PDF redaction. Do not rely on sensitive-information detection to scrub file properties, embedded-image metadata, or other non-text surfaces. Review those surfaces with appropriate tools. Philter does not process Office documents; revision history, tracked changes, and spreadsheet content require external conversion and review.
+Philter supports text, PDF, Word, and Excel redaction. Do not rely on sensitive-information detection to scrub file properties, embedded-image metadata, or other non-text surfaces. Review those surfaces with appropriate tools. In Word and Excel documents, document properties such as the author, and the author names Word records on comments and tracked changes, are not redacted; see [Word and Excel documents](redacting_documents.md#word-and-excel-documents) for what is.
 
 Ensure you scrub metadata using specialized tools before or after the redaction process if your security policy requires it.
 

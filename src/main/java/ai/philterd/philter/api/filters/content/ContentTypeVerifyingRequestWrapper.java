@@ -35,7 +35,7 @@ import java.io.SequenceInputStream;
 public class ContentTypeVerifyingRequestWrapper extends HttpServletRequestWrapper {
 
     private final byte[] leadingBytes;
-    private final InputStream body;
+    private InputStream body;
 
     public ContentTypeVerifyingRequestWrapper(final HttpServletRequest request) throws IOException {
 
@@ -47,6 +47,16 @@ public class ContentTypeVerifyingRequestWrapper extends HttpServletRequestWrappe
         this.leadingBytes = peeked;
         this.body = new SequenceInputStream(new ByteArrayInputStream(peeked), original);
 
+    }
+
+    /**
+     * Reads the whole body, which is still served to the rest of the chain. The size limit of the request
+     * this wraps applies to the read.
+     */
+    public byte[] readBody() throws IOException {
+        final byte[] all = body.readAllBytes();
+        body = new ByteArrayInputStream(all);
+        return all;
     }
 
     /** The leading bytes of the body, up to {@link DocumentType#SIGNATURE_LENGTH}. */

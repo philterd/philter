@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.filters.content;
 
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
+import ai.philterd.philter.testutil.OfficeDocuments;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -183,6 +184,63 @@ class ContentTypeVerifyingFilterTest {
 
         assertNull(filter("/api/policies", "application/json", policy, seen));
         assertArrayEquals(policy, seen[0]);
+    }
+
+    private static final String WORD = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    private static final String EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    @Test
+    void aGenuineWordDocumentIsAcceptedAndArrivesIntact() throws Exception {
+        final byte[] docx = OfficeDocuments.docx("Hello");
+        final byte[][] seen = new byte[1][];
+
+        assertNull(filter("/api/filter", WORD, docx, seen));
+        assertArrayEquals(docx, seen[0], "reading the whole body must not consume it");
+    }
+
+    @Test
+    void aGenuineExcelWorkbookIsAcceptedAndArrivesIntact() throws Exception {
+        final byte[] xlsx = OfficeDocuments.xlsx("Hello");
+        final byte[][] seen = new byte[1][];
+
+        assertNull(filter("/api/filter", EXCEL, xlsx, seen));
+        assertArrayEquals(xlsx, seen[0]);
+    }
+
+    @Test
+    void anExcelWorkbookDeclaredAsWordIsRefused() throws Exception {
+        final Exception refused = filter("/api/filter", WORD, OfficeDocuments.xlsx("Hello"), null);
+
+        assertInstanceOf(UnsupportedMediaTypeException.class, refused);
+        assertTrue(refused.getMessage().contains("an Excel workbook"), refused.getMessage());
+    }
+
+    @Test
+    void aZipThatIsNotAnOfficeDocumentIsRefused() throws Exception {
+        final Exception refused = filter("/api/filter", EXCEL, OfficeDocuments.plainZip(), null);
+
+        assertInstanceOf(UnsupportedMediaTypeException.class, refused);
+    }
+
+    @Test
+    void aPdfDeclaredAsWordIsRefused() throws Exception {
+        final Exception refused = filter("/api/filter", WORD, PDF, null);
+
+        assertInstanceOf(UnsupportedMediaTypeException.class, refused);
+        assertTrue(refused.getMessage().contains("PDF"), refused.getMessage());
+    }
+
+    @Test
+    void aCompoundFileDeclaredAsExcelIsRefusedAsPossiblyPasswordProtected() throws Exception {
+        final Exception refused = filter("/api/filter", EXCEL, OLE2, null);
+
+        assertInstanceOf(UnsupportedMediaTypeException.class, refused);
+        assertTrue(refused.getMessage().contains("password-protected"), refused.getMessage());
+    }
+
+    @Test
+    void anEmptyBodyDeclaredAsWordIsRefused() throws Exception {
+        assertNotNull(filter("/api/filter", WORD, new byte[0], null));
     }
 
     @Test

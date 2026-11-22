@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is the source of truth for 4.0.0 and later: record every release entry here.
 [RELEASE_NOTES.md](RELEASE_NOTES.md) holds the narrative history of 3.x and earlier.
 
+## [Unreleased]
+
+Uses Phileas 4.6.0.
+
+### Added
+
+- **Word and Excel redaction:** `POST /api/filter` accepts Word (`.docx`) and Excel (`.xlsx`) documents
+  and returns an editable document of the same format, synchronously or queued, with policies,
+  contexts, and the ledger as for PDF ([#213](https://github.com/philterd/philter/issues/213)). A body
+  declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
+  `OFFICE_MAX_ENTRIES` limit what one may decompress to.
+
+### Changed
+
+- **Detection and output for existing policies:** Phileas 4.6.0 changes what some filters detect and
+  how overlapping spans are replaced. For example, the currency filter now detects amounts written with
+  a currency name, such as `100 dollars`. See the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
+
 ## [4.0.2] - 2026-11-17
 
 Dependency update. No behavior changes; still Java 25 and Phileas 4.5.0.

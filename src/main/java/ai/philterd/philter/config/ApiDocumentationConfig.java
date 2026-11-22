@@ -105,23 +105,30 @@ public class ApiDocumentationConfig {
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
             final Operation filter = op(api, "/api/filter", "post");
-            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, or sign=true on a PDF request.");
-            filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), or encrypted async record exceeds its size limit.");
+            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, or sign=true on a PDF, Word, or Excel request.");
+            filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), encrypted async record, or a Word or Excel document's decompressed size or entry count exceeds its limit.");
             filter.setOperationId("filter");
-            filter.setSummary("Redact text or a PDF.");
+            filter.setSummary("Redact text, a PDF, a Word document, or an Excel workbook.");
+            filter.getResponses().computeIfAbsent("415", status -> new ApiResponse())
+                    .setDescription("The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document.");
             filter.setDescription("Requires the `redact` scope. Text is synchronous and returns text/plain. "
-                    + "For PDFs select application/pdf or application/zip with Accept. PDFs default to async=true, "
+                    + "For PDFs select application/pdf or application/zip with Accept. A Word document or Excel "
+                    + "workbook is returned in its own format. PDF, Word, and Excel default to async=true, "
                     + "returning application/json with documentId regardless of the selected download format. "
                     + "Set async=false for inline binary output. Async submission captures resolved configuration. "
                     + ai.philterd.philter.api.controllers.FilterApiController.SIGN_PARAMETER
-                    + " It applies to the text path, which is the one that is signed; sign=true on a PDF"
-                    + " request is refused with 400 rather than answered unsigned.");
+                    + " It applies to the text path, which is the one that is signed; sign=true on a PDF, Word,"
+                    + " or Excel request is refused with 400 rather than answered unsigned.");
             filter.getRequestBody().setContent(content("text/plain", new StringSchema())
-                    .addMediaType("application/pdf", new MediaType().schema(new BinarySchema())));
+                    .addMediaType("application/pdf", new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema())));
             response(filter, "200", "Redacted text or synchronous binary result.", content("text/plain", new StringSchema())
                     .addMediaType("application/pdf", new MediaType().schema(new BinarySchema()))
-                    .addMediaType("application/zip", new MediaType().schema(new BinarySchema())));
-            response(filter, "202", "PDF accepted; poll status and download the result.",
+                    .addMediaType("application/zip", new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema())));
+            response(filter, "202", "Document accepted; poll status and download the result.",
                     content("application/json", object("documentId", new StringSchema())));
             for (String status : new String[]{"200", "202"}) {
                 headers(filter, status, "X-Philter-Policy-Name", "X-Philter-Policy-Version", "X-Philter-Policy-Hash");
@@ -134,7 +141,9 @@ public class ApiDocumentationConfig {
             retry(op(api, "/api/documents/{documentId}", "delete"), "409", "The document is processing, or notification reconciliation is pending.");
             final Operation download = op(api, "/api/documents/{documentId}", "get");
             response(download, "200", "Completed result bytes.", content("application/pdf", new BinarySchema())
-                    .addMediaType("application/zip", new MediaType().schema(new BinarySchema())));
+                    .addMediaType("application/zip", new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema())));
             headers(download, "200", "Content-Disposition");
             for (String path : new String[]{"/api/ledger/{documentId}/export", "/api/contexts/{name}/entries/export"}) {
                 headers(op(api, path, "get"), "200", "Content-Disposition");

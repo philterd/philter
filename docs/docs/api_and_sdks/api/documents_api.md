@@ -1,6 +1,6 @@
 # Documents API
 
-The Documents API exposes the lifecycle of asynchronously-submitted PDF redactions. When a PDF is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
+The Documents API exposes the lifecycle of asynchronously-submitted PDF, Word, and Excel redactions. When one of these is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
 
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own documents. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, status, download, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
@@ -126,7 +126,7 @@ Returns `404 Not Found` if no document with that id exists for the calling user.
 
 | Response       | Meaning                                                                                   |
 |----------------|-------------------------------------------------------------------------------------------|
-| `200 OK`       | Redacted bytes. `Content-Type` matches the requested output (`application/pdf` or `application/zip`). |
+| `200 OK`       | Redacted bytes. `Content-Type` matches the requested output (`application/pdf`, `application/zip`, or the Word or Excel type the document was submitted as). |
 | `409 Conflict` | The document exists but the redaction has not yet completed. Poll the status endpoint and retry. |
 | `410 Gone`     | The redaction failed. Inspect the status response (or webhook) for the error message.             |
 | `404 Not Found`| No document with that id exists for the calling user (or it has been TTL-evicted).        |

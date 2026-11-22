@@ -92,9 +92,8 @@
         <sqlite-jdbc.version>3.54.1.0</sqlite-jdbc.version>
         <skipSqliteITs>false</skipSqliteITs>
         <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
-        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT,ModelsApiIT,CrossOriginResourcePolicyIT</sqlite.it.test>
-        <phileas.version>4.5.0</phileas.version>
-        <phileas-pheye-onnx.version>1.1.0</phileas-pheye-onnx.version>
+        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT,ModelsApiIT,CrossOriginResourcePolicyIT,OfficeDocumentsApiIT</sqlite.it.test>
+        <phileas.version>4.6.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.1.0</springdoc.version>
         <!-- Build plugin versions -->
         <dependency-check-maven.version>12.1.9</dependency-check-maven.version>
@@ -523,7 +522,13 @@
         <dependency>
             <groupId>ai.philterd</groupId>
             <artifactId>phileas-pheye-onnx</artifactId>
-            <version>${phileas-pheye-onnx.version}</version>
+            <version>${phileas.version}</version>
+        </dependency>
+        <!-- Redacts Word (.docx) and Excel (.xlsx) documents. -->
+        <dependency>
+            <groupId>ai.philterd</groupId>
+            <artifactId>phileas-ooxml</artifactId>
+            <version>${phileas.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

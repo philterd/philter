@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.api;
 
+import ai.philterd.philter.api.controllers.FilterApiController;
 import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
@@ -36,6 +37,7 @@ import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.model.Constants;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
+import ai.philterd.philter.testutil.OfficeDocuments;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -550,13 +552,17 @@ class ApiFilterChainIT {
                     request.header("Accept", mapping.produces()[0]);
                 }
 
-                // ContentTypeVerifyingFilter inspects the bytes, so a PDF endpoint needs real PDF bytes
-                // to get far enough to be refused for the right reason.
+                // ContentTypeVerifyingFilter inspects the bytes, so a PDF, Word, or Excel endpoint needs a real
+                // document to get far enough to be refused for the right reason.
                 final HttpRequest.BodyPublisher body = "GET".equals(httpMethod) || "DELETE".equals(httpMethod)
                         ? HttpRequest.BodyPublishers.noBody()
                         : MediaType.APPLICATION_PDF_VALUE.equals(consumes)
                                 ? HttpRequest.BodyPublishers.ofByteArray(onePagePdf())
-                                : HttpRequest.BodyPublishers.ofString("{}");
+                                : FilterApiController.DOCX.equals(consumes)
+                                        ? HttpRequest.BodyPublishers.ofByteArray(OfficeDocuments.docx("text"))
+                                        : FilterApiController.XLSX.equals(consumes)
+                                                ? HttpRequest.BodyPublishers.ofByteArray(OfficeDocuments.xlsx("text"))
+                                                : HttpRequest.BodyPublishers.ofString("{}");
 
                 final HttpResponse<String> response = send(request.method(httpMethod, body).build());
                 checked++;

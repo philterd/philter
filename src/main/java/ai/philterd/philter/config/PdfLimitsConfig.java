@@ -38,7 +38,8 @@ public class PdfLimitsConfig {
         check(environment, "PDF_MAX_CONCURRENT", Integer::parseInt);
     }
 
-    private static void check(final Function<String, String> environment, final String name,
+    // Shared with OfficeLimitsConfig.
+    static void check(final Function<String, String> environment, final String name,
                               final Function<String, Number> parser) {
         final String value = environment.apply(name);
         if (value == null || value.isBlank()) {

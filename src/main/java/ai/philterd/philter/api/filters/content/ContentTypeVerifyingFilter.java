@@ -15,8 +15,12 @@
  */
 package ai.philterd.philter.api.filters.content;
 
+import ai.philterd.phileas.services.ooxml.OoxmlDocumentType;
+import ai.philterd.philter.api.exceptions.BadRequestException;
+import ai.philterd.philter.api.exceptions.PayloadTooLargeException;
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
 import ai.philterd.philter.api.filters.RequestPaths;
+import ai.philterd.philter.services.filtering.OfficeInputValidator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +46,10 @@ import java.util.Set;
  * text does not, so detection alone would have to treat anything unrecognized as text, which is how a
  * {@code .docx} (a ZIP underneath) would slip through. The declared type turns that open-ended
  * blocklist into a closed allowlist.
+ *
+ * <p>A body declared as Word or Excel is a ZIP underneath, which the signature cannot tell from any
+ * other ZIP, so it is read in full and checked to be a package of the declared type, within the Office
+ * limits.
  *
  * <p>Detection is unconditional. Comparing eight bytes costs on the order of a nanosecond, so there
  * is nothing to gain by making it configurable.
@@ -74,8 +82,12 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
 
         try {
             verify(declared, detected);
-        } catch (final UnsupportedMediaTypeException e) {
-            LOGGER.warn("Rejected a request whose body contradicts its declared content type: {}", e.getMessage());
+            final OoxmlDocumentType office = OfficeInputValidator.declaredType(declared);
+            if (office != null) {
+                OfficeInputValidator.validate(wrapped.readBody(), office);
+            }
+        } catch (final UnsupportedMediaTypeException | BadRequestException | PayloadTooLargeException e) {
+            LOGGER.warn("Rejected a document whose body contradicts its declared content type or exceeds a limit: {}", e.getMessage());
             if (resolver.resolveException(request, response, null, e) == null) {
                 throw e;
             }
@@ -97,6 +109,21 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
             if (detected != DocumentType.PDF) {
                 throw new UnsupportedMediaTypeException("The request declares application/pdf but the body is "
                         + detected.getDescription() + ".");
+            }
+            return;
+        }
+
+        final OoxmlDocumentType office = OfficeInputValidator.declaredType(declared);
+        if (office != null) {
+            if (detected == DocumentType.OLE2) {
+                // A password-protected .docx or .xlsx is stored as a compound file too.
+                throw new UnsupportedMediaTypeException("The request declares " + office.mimeType().getValue()
+                        + " but the body is a legacy Office file or a password-protected Office document,"
+                        + " which is not supported.");
+            }
+            if (detected != DocumentType.ZIP) {
+                throw new UnsupportedMediaTypeException("The request declares " + office.mimeType().getValue()
+                        + " but the body is " + detected.getDescription() + ".");
             }
             return;
         }

@@ -2,18 +2,19 @@
 
 ## Filter
 
-This filter identifies monetary amounts in text and reports them with the span type `currency`. An amount is detected when it has a currency symbol or a currency code before or after it:
+This filter identifies monetary amounts in text and reports them with the span type `currency`. An amount is detected when it has a currency symbol, a currency code, or a currency name:
 
 * A symbol before or after the amount: `$`, `€`, `£`, `¥`, or `₹`, such as `$35.53`, `$ 100`, `€1.450,00`, `250,50 £`, and `₹500`.
-* A code before or after the amount: `USD`, `EUR`, `GBP`, `JPY`, `CAD`, `AUD`, or `INR`, such as `USD 1,234.56` and `5000 JPY`. Codes are matched in any case, so `5 eur` is detected.
-* Both, such as `$3,450.75 USD`, which is reported as one amount.
+* An ISO 4217 code before or after the amount: `USD`, `EUR`, `GBP`, `JPY`, `CAD`, `AUD`, `INR`, `SEK`, `NOK`, `DKK`, `PLN`, `CZK`, `HUF`, `NZD`, `CNY`, `HKD`, `SGD`, `KRW`, `MXN`, `BRL`, `ZAR`, `BGN`, `ISK`, `UAH`, or `HRK`, such as `USD 1,234.56` and `5000 JPY`. These codes are matched in any case, so `5 eur` is detected. `CHF`, `RUB`, `TRY`, and `RON` are words or abbreviations in other contexts, so they must be uppercase and the number must contain a comma or period: `CHF 3,000` is detected and `CHF 500` is not.
+* A currency name after the amount, with an optional nationality adjective, such as `5,000 euros`, `100 dollars`, `20 British pounds`, `20 pounds sterling`, `235,000 Swedish crowns`, or `10,000 French francs`. `pounds` requires a nationality adjective or `sterling`, `crowns` requires a nationality adjective, and `marks` requires `German`, `Deutsche`, or `Finnish`.
+* Both a symbol and a code, such as `$3,450.75 USD`, which is reported as one amount.
 
-The digits may be grouped with commas or periods in either convention (`1,450.00` or `1.450,00`).
+An amount with a symbol before it, or with a code, may end in a `k`, `M`, or `bn` magnitude, such as `$1.5M` or `USD 1.5M`. The digits may be grouped with commas or periods in either convention (`1,450.00` or `1.450,00`).
 
 Not detected:
 
-* An amount without a symbol or one of those codes, such as `1,450 dollars` or a bare `100`.
-* Currencies written with other symbols or codes, such as `100 CHF`.
+* An amount with no symbol, code, or currency name, such as a bare `100`.
+* Currencies written with other symbols or codes.
 
 Detection is based on the format of the text, so a value written this way that is not a monetary amount can be reported, and an amount written another way is not. Validate the results against your own documents.
 

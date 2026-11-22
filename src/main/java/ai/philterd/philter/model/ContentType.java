@@ -19,7 +19,8 @@ public enum ContentType {
 
     DOCX("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
     PDF("application/pdf", ".pdf"),
-    TXT("text/plain", ".txt");
+    TXT("text/plain", ".txt"),
+    XLSX("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx");
 
     private final String contentType;
     private final String extension;

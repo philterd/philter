@@ -8,11 +8,11 @@ Each filter request can optionally have a `context`. The context is optional: wh
 
 The context for each filter request impacts how sensitive information is replaced when found in the text. [Referential integrity](../../other_features/referential_integrity.md) can be enabled at either the context or document level. When enabled at the context level, all instances of a given piece of sensitive information will be replaced consistently by the same value. This allows for maintaining meaning across all documents in the context.
 
-Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `X-Document-Id` header of each synchronous `filter` or `explain` response. An asynchronous PDF request's `202 Accepted` response returns it in the JSON body as `documentId`.
+Each filter request submitted to Philter is automatically assigned a document identifier. The document identifier is an alphanumeric value unique to that request. No two documents should be assigned the same document identifier. The document identifier is returned in the `X-Document-Id` header of each synchronous `filter` or `explain` response. An asynchronous document request's `202 Accepted` response returns it in the JSON body as `documentId`.
 
 ## Filter
 
-The `filter` endpoint receives plain text or a PDF document and returns the redacted text or redacted PDF document.
+The `filter` endpoint receives plain text, a PDF, a Word document, or an Excel workbook and returns it redacted, in the same format. A PDF can instead be returned in a ZIP archive.
 
 The types of sensitive information found and how each type is redacted is determined by the chosen policy.
 
@@ -24,15 +24,15 @@ The types of sensitive information found and how each type is redacted is determ
 
 * `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
-* `async` - **PDF only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
+* `async` - **PDF, Word, and Excel only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
-* `fairness_key` - **Asynchronous PDF only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
-* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF and ZIP requests with `sign=true` are refused with `400 Bad Request`, because PDF responses are not signed.
+* `fairness_key` - **Asynchronous PDF, Word, and Excel only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
+* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF, ZIP, Word, and Excel requests with `sign=true` are refused with `400 Bad Request`, because those responses are not signed.
 
 ### Headers
 
 * `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
-* `Content-Type` - The value should be set to `text/plain` or `application/pdf`.
+* `Content-Type` - `text/plain`, `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (Word), or `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (Excel).
 
 ### Request Size
 
@@ -51,8 +51,15 @@ run through the text pipeline, match almost nothing in the compressed bytes, and
 output that looks redacted. Refusing the request is safer than returning a document Philter never
 parsed.
 
-Philter accepts `text/plain` and `application/pdf`. A body recognized as any other format, such as a
-`.docx`, a legacy Office file, or an image, is rejected rather than treated as text.
+Philter accepts `text/plain`, `application/pdf`, and the Word and Excel types above. A body recognized
+as any other format, such as a `.docx` sent as text, a legacy Office file, or an image, is rejected
+rather than treated as text.
+
+A ZIP cannot be told apart from a Word or Excel document by its first bytes, so a body declared as Word
+or Excel is read in full and must be a document of the declared type. An Excel workbook sent as Word,
+or any other ZIP file, is refused. A password-protected Office document is not a ZIP and is refused as
+well. A Word or Excel document over the [Office limits](../../settings.md#redaction-engine) is refused
+with `413 Payload Too Large`.
 
 ### Response Headers
 
@@ -84,7 +91,7 @@ Plain text redaction is always synchronous. The response body is the redacted te
 curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer <token>"
 ```
 
-### PDF documents
+### PDF, Word, and Excel documents
 
 PDF redaction is **asynchronous by default** in Philter 4.0. The server enqueues the request and returns `202 Accepted` with a JSON body containing the assigned `documentId` and a `Location: /api/documents/{documentId}` header. A request naming a policy that does not exist is refused with `404 Not Found` before it is enqueued, so a mistyped policy name surfaces immediately rather than as a failed job. The synchronous text endpoint answers the same way. The redacted bytes can then be downloaded from the [Documents API](documents_api.md) once the job's status is `COMPLETE`.
 
@@ -116,6 +123,16 @@ curl -k -X POST "https://localhost:8080/api/filter?async=false" \
   -o redacted.pdf
 ```
 
+Word documents and Excel workbooks work the same way, with their own `Content-Type`, and are returned in the same format. See [Word and Excel documents](../../redaction/redacting_documents.md#word-and-excel-documents) for what is redacted.
+
+```
+curl -k -X POST "https://localhost:8080/api/filter?async=false" \
+  --data-binary @file.xlsx \
+  -H "Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
+  -H "Authorization: Bearer <token>" \
+  -o redacted.xlsx
+```
+
 > **Migration from 3.x.** Clients that previously consumed the redacted bytes directly from `POST /api/filter` should either (a) add `?async=false` to keep the synchronous behavior, or (b) switch to the async flow (poll `GET /api/documents/{id}/status`, then download from `GET /api/documents/{id}`). Async deliveries can additionally trigger a signed [webhook](webhooks.md) when they complete.
 
 #### Fairness keys
@@ -136,7 +153,7 @@ curl -k -X POST "https://localhost:8080/api/filter?fairness_key=reviewer-42" \
 
 ## Explain
 
-The `explain` endpoint behaves much like the `filter` endpoint in that receives plain text and returns the redacted plain text. However, the `explain` endpoint provides a detailed explanation describing how the text was redacted. Also, the `explain` endpoint does not support PDF documents.
+The `explain` endpoint behaves much like the `filter` endpoint in that receives plain text and returns the redacted plain text. However, the `explain` endpoint provides a detailed explanation describing how the text was redacted. Also, the `explain` endpoint does not support PDF, Word, or Excel documents.
 
 The types of sensitive information found and how each type is redacted is determined by the chosen policy.
 
@@ -255,7 +272,7 @@ Philterd products.
 
 ## Response formats and evidence identifiers
 
-Text requests use `Content-Type: text/plain` and `Accept: text/plain`. PDF requests use `Content-Type: application/pdf` and select `Accept: application/pdf` or `Accept: application/zip`. A ZIP contains one entry named `redacted.pdf`. Both synchronous responses and completed asynchronous downloads contain actual ZIP bytes when ZIP is selected. PDF async acceptance returns JSON regardless of the selected download format. Set `async=false` for an inline PDF or ZIP.
+Text requests use `Content-Type: text/plain` and `Accept: text/plain`. PDF requests use `Content-Type: application/pdf` and select `Accept: application/pdf` or `Accept: application/zip`. Word and Excel requests use the same type for `Content-Type` and `Accept`. A ZIP contains one entry named `redacted.pdf`. Both synchronous responses and completed asynchronous downloads contain actual ZIP bytes when ZIP is selected. PDF async acceptance returns JSON regardless of the selected download format. Set `async=false` for an inline PDF or ZIP.
 
 Synchronous text, PDF, and ZIP responses expose `X-Document-Id`, allowing lookup of the corresponding ledger when the context records one. `/api/filter` responses, including async acceptance, report raw policy identity through `X-Philter-Policy-Name`, `X-Philter-Policy-Version`, and `X-Philter-Policy-Hash`; `/api/explain` reports it in the response body instead. Async acceptance additionally reports `X-Effective-Configuration-SHA256`; see [captured configuration](documents_api.md#configuration-captured-at-submission) and [which policy redacted a document](documents_api.md#which-policy-redacted-a-document).
 
@@ -265,6 +282,6 @@ A request whose policy Phileas refuses to load, such as one saved before Philter
 
 A request whose context `c` does not exist returns `400 Bad Request` with `Context does not exist.`, for text, PDF, and ZIP output, synchronous or asynchronous, and from `/api/explain`. A queued document uses the context as it was when the document was accepted, and a context with queued documents cannot be deleted; see [Deleting a Context With Pending Work](../../redaction/contexts.md#deleting-a-context-with-pending-work).
 
-Malformed, unparseable, and password-protected PDFs return `400 Bad Request`. This applies to PDF and ZIP output, including asynchronous submissions, which are validated before queue admission. A PDF must contain at least one page. Storage, signing, and other infrastructure failures remain server errors. PDF validation does not perform OCR; image-only PDFs are outside the supported redaction scope.
+A Word or Excel body that is not a readable ZIP returns `400 Bad Request`. Malformed, unparseable, and password-protected PDFs return `400 Bad Request`. This applies to PDF and ZIP output, including asynchronous submissions, which are validated before queue admission. A PDF must contain at least one page. Storage, signing, and other infrastructure failures remain server errors. PDF validation does not perform OCR; image-only PDFs are outside the supported redaction scope.
 
 Async PDF admission (including ZIP output) retries acknowledged guard contention for up to 500 ms, with randomized 5–25 ms pauses. This bounds contention waiting, not database/network operation timeouts. Once the guard is acquired, account and global capacity checks still apply. An exhausted wait returns 503; account capacity returns 429. Both responses include `Retry-After: 5`. Database exceptions do not trigger application-level acquisition retries, guard release, or job-insert replay. Plain text and `async=false` requests bypass queue admission. A PDF sent with `async=false` while the instance is already redacting [`PDF_MAX_CONCURRENT`](../../settings.md#redaction-engine) PDFs is refused with `503` and `Retry-After: 5`.

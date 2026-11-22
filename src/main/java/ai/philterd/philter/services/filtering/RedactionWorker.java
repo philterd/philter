@@ -225,10 +225,13 @@ public class RedactionWorker {
      * failure is internal (a document library error, an unreachable model service naming its host) and is
      * described only in the log, which records it with the document ID.
      */
-    /** A failure the caller can act on: the policy or context it named, or a PDF over the limits. */
+    /** A failure the caller can act on: the policy or context it named, or a document over the limits or refused. */
     static boolean callerCaused(final Exception ex) {
         return ex instanceof PolicyResolutionException || ex instanceof PolicyNotFoundException
-                || ex instanceof PdfLimitExceededException;
+                || ex instanceof PdfLimitExceededException
+                || ex instanceof ai.philterd.philter.api.exceptions.PayloadTooLargeException
+                || ex instanceof ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException
+                || ex instanceof ai.philterd.philter.api.exceptions.BadRequestException;
     }
 
     static String failureMessage(final Exception ex) {

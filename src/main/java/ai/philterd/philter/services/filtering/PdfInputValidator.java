@@ -9,12 +9,14 @@ import java.io.IOException;
 public final class PdfInputValidator {
     private PdfInputValidator() { }
 
-    public static void validate(final byte[] input) {
+    /** Returns the number of pages. */
+    public static int validate(final byte[] input) {
         // This overload parses the supplied bytes in memory: no application storage or network I/O.
         try (var document = Loader.loadPDF(input)) {
             if (document.getNumberOfPages() == 0) {
                 throw new BadRequestException("PDF input must contain at least one page.");
             }
+            return document.getNumberOfPages();
         } catch (InvalidPasswordException ex) {
             throw new BadRequestException("Password-protected PDF input is not supported.");
         } catch (IOException ex) {

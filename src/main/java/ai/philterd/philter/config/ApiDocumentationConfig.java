@@ -105,7 +105,7 @@ public class ApiDocumentationConfig {
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
             final Operation filter = op(api, "/api/filter", "post");
-            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, or sign=true on a PDF, Word, or Excel request.");
+            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, sign=true on a PDF, Word, or Excel request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.");
             filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), encrypted async record, or a Word or Excel document's decompressed size or entry count exceeds its limit.");
             filter.setOperationId("filter");
             filter.setSummary("Redact text, a PDF, a Word document, or an Excel workbook.");
@@ -134,6 +134,16 @@ public class ApiDocumentationConfig {
                 headers(filter, status, "X-Philter-Policy-Name", "X-Philter-Policy-Version", "X-Philter-Policy-Hash");
             }
             headers(filter, "200", ai.philterd.philter.api.controllers.FilterApiController.DOCUMENT_ID_HEADER);
+            filter.addParametersItem(new io.swagger.v3.oas.models.parameters.QueryParameter()
+                    .name(ai.philterd.philter.services.filtering.PagePolicyRequest.PARAMETER)
+                    .description(ai.philterd.philter.api.controllers.FilterApiController.PAGE_POLICY_PARAMETER)
+                    .schema(new ArraySchema().items(new StringSchema()))
+                    .style(io.swagger.v3.oas.models.parameters.Parameter.StyleEnum.FORM).explode(true));
+            for (String status : new String[]{"200", "202"}) {
+                header(filter, status, ai.philterd.philter.api.controllers.FilterApiController.PAGE_POLICIES_HEADER,
+                        "PDF only, when page_policy is given: the policy and version that redacted each page set, as "
+                                + "pages=policy@version separated by \"; \".");
+            }
             header(filter, "200", SIGNATURE, SIGNED + " Only text responses are signed.");
             headers(filter, "202", "Location", "X-Effective-Configuration-SHA256");
             retry(filter, "429", "Account async queue capacity reached.");

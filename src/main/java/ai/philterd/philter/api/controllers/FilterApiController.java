@@ -43,6 +43,10 @@ import ai.philterd.philter.services.filtering.RedactionService;
 import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
+import ai.philterd.philter.services.filtering.AppliedPagePolicy;
+import ai.philterd.philter.services.filtering.PagePolicyRequest;
+import ai.philterd.philter.services.filtering.RedactionService.PagePolicyCapture;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,7 +67,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -78,6 +84,16 @@ public class FilterApiController extends AbstractApiController {
     public static final String POLICY_VERSION_HEADER = "X-Philter-Policy-Version";
     public static final String POLICY_HASH_HEADER = "X-Philter-Policy-Hash";
     public static final String DOCUMENT_ID_HEADER = "X-Document-Id";
+    /** The policy and version that redacted each page set named with page_policy: {@code pages=policy@version; ...}. */
+    public static final String PAGE_POLICIES_HEADER = "X-Philter-Page-Policies";
+
+    /** Documented in ApiDocumentationConfig, since the parameter is read from the request rather than bound. */
+    public static final String PAGE_POLICY_PARAMETER =
+            "Optional, repeatable. Redacts a set of pages with a different policy, as <pages>:<policy>, such as "
+                    + "2-5,8:records or 12-:exhibits. Pages are numbered from 1, and a page set is single pages, ranges, "
+                    + "and open-ended ranges separated by commas. Pages not assigned are redacted with the policy named by "
+                    + "p, whose config.pdf settings render the whole document. One context spans the document. Page sets "
+                    + "may not overlap or extend beyond the last page.";
 
     private final RedactionService redactionService;
     private final PolicyDataService policyDataService;
@@ -137,6 +153,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as ZIP. async={}", async);
@@ -152,16 +169,21 @@ public class FilterApiController extends AbstractApiController {
 
         final String userId = apiKeyEntity.getUserId();
 
+        // Read from the request rather than bound, since binding a single value to a list splits it at commas.
+        final List<PagePolicyRequest> pagePolicies = PagePolicyRequest.parse(request.getParameterValues(PagePolicyRequest.PARAMETER));
+
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename,
-                    fairnessKey);
+                    fairnessKey, pagePolicies);
         }
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
+        final RedactionOutcome outcome = pagePolicies.isEmpty()
+                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename)
+                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies);
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
-                .headers(policyHeaders(outcome.appliedPolicy()))
+                .headers(policyHeaders(outcome))
                 .header(DOCUMENT_ID_HEADER, outcome.documentId())
                 .body(ai.philterd.philter.services.filtering.BinaryOutput.encode(binaryDocumentFilterResult.getDocument(), "application/zip"));
 
@@ -189,6 +211,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded binary PDF file to be returned as PDF. async={}", async);
@@ -204,16 +227,21 @@ public class FilterApiController extends AbstractApiController {
 
         final String userId = apiKeyEntity.getUserId();
 
+        // Read from the request rather than bound, since binding a single value to a list splits it at commas.
+        final List<PagePolicyRequest> pagePolicies = PagePolicyRequest.parse(request.getParameterValues(PagePolicyRequest.PARAMETER));
+
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename,
-                    fairnessKey);
+                    fairnessKey, pagePolicies);
         }
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename);
+        final RedactionOutcome outcome = pagePolicies.isEmpty()
+                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename)
+                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies);
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
-                .headers(policyHeaders(outcome.appliedPolicy()))
+                .headers(policyHeaders(outcome))
                 .header(DOCUMENT_ID_HEADER, outcome.documentId())
                 .body(binaryDocumentFilterResult.getDocument());
 
@@ -247,10 +275,11 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded Word document. async={}", async);
-        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, body, MimeType.APPLICATION_DOCX);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_DOCX);
 
     }
 
@@ -276,16 +305,18 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded Excel workbook. async={}", async);
-        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, body, MimeType.APPLICATION_XLSX);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_XLSX);
 
     }
 
     private ResponseEntity<byte[]> filterOffice(final String authorizationHeader, final String context, final String policyName,
                                                 final boolean async, final String filename, final boolean sign,
-                                                final String fairnessKey, final byte[] body, final MimeType mimeType) throws Exception {
+                                                final String fairnessKey, final HttpServletRequest request,
+                                                final byte[] body, final MimeType mimeType) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -293,13 +324,15 @@ public class FilterApiController extends AbstractApiController {
             throw new UnauthorizedException("Unauthorized.");
         }
 
+        rejectPagePolicies(request);
+
         rejectSigningRequest(sign);
         rejectFairnessKey(async, fairnessKey);
 
         final String userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, mimeType, mimeType.getValue(), policyName, context, filename, fairnessKey);
+            return enqueueBinary(userId, body, mimeType, mimeType.getValue(), policyName, context, filename, fairnessKey, List.of());
         }
 
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, mimeType, filename);
@@ -335,6 +368,7 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            final HttpServletRequest request,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -342,6 +376,8 @@ public class FilterApiController extends AbstractApiController {
         if(apiKeyEntity == null) {
             throw new UnauthorizedException("Unauthorized.");
         }
+
+        rejectPagePolicies(request);
 
         final String userId = apiKeyEntity.getUserId();
 
@@ -377,6 +413,13 @@ public class FilterApiController extends AbstractApiController {
         }
     }
 
+    /** Page sets apply only to a PDF, so naming them for another format is refused rather than ignored. */
+    private static void rejectPagePolicies(final HttpServletRequest request) {
+        if (request.getParameterValues(PagePolicyRequest.PARAMETER) != null) {
+            throw new BadRequestException(PagePolicyRequest.PARAMETER + " applies only to PDF documents.");
+        }
+    }
+
     /**
      * A fairness key orders queued documents, so one on a synchronous request, or one that is not a valid key, is
      * refused rather than ignored.
@@ -396,10 +439,13 @@ public class FilterApiController extends AbstractApiController {
 
     private ResponseEntity<byte[]> enqueueBinary(final String userId, final byte[] body, final MimeType inputMimeType,
                                                  final String outputMimeType, final String policyName, final String contextName,
-                                                 final String filename, final String fairnessKey) throws PolicyNotFoundException {
+                                                 final String filename, final String fairnessKey,
+                                                 final List<PagePolicyRequest> pagePolicies) throws PolicyNotFoundException {
 
         if (inputMimeType == MimeType.APPLICATION_PDF) {
-            ai.philterd.philter.services.filtering.PdfInputValidator.validate(body);
+            // Page sets are checked against the document here, so a mistake is refused rather than failing the job.
+            PagePolicyRequest.checkPageCount(pagePolicies,
+                    ai.philterd.philter.services.filtering.PdfInputValidator.validate(body));
         } else {
             final var officeType = ai.philterd.philter.services.filtering.OfficeInputValidator.declaredType(inputMimeType);
             ai.philterd.philter.services.filtering.OfficeInputValidator.validate(body, officeType);
@@ -436,7 +482,21 @@ public class FilterApiController extends AbstractApiController {
         entity.setPolicyVersion(policyVersion);
         entity.setPolicyContentHash(policyContentHash);
 
-        final String effectiveJson = redactionService.captureEffectiveConfiguration(policyEntity, contextName);
+        // Each page set's policy is pinned the same way.
+        final List<PagePolicyCapture> pageCaptures = new ArrayList<>();
+        final List<AppliedPagePolicy> appliedPages = new ArrayList<>();
+        for (final PagePolicyRequest pagePolicy : pagePolicies) {
+            final PolicyEntity pageEntity = policyDataService.findOne(pagePolicy.policyName(), userId);
+            if (pageEntity == null) {
+                throw new PolicyNotFoundException("The policy '" + pagePolicy.policyName() + "' does not exist.");
+            }
+            final String pageHash = policyVersionDataService.snapshot(pageEntity);
+            pageCaptures.add(new PagePolicyCapture(pagePolicy.pages(), pageEntity, pageHash));
+            appliedPages.add(new AppliedPagePolicy(pagePolicy.pages(),
+                    new AppliedPolicy(pageEntity.getName(), pageEntity.getRevision(), pageHash)));
+        }
+
+        final String effectiveJson = redactionService.captureEffectiveConfiguration(policyEntity, contextName, pageCaptures);
         entity.setEffectiveJson(effectiveJson);
         entity.setEffectiveHash(PolicyVersionDataService.contentHash(effectiveJson));
         pendingDocumentDataService.save(entity);
@@ -445,11 +505,18 @@ public class FilterApiController extends AbstractApiController {
         // correlation id used by the /api/documents endpoints.
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_INITIATED, userId, null, null,
                 "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType
-                        + ", policy: " + AuditDetails.quote(policyName) + ", policyVersion: " + policyVersion);
+                        + ", policy: " + AuditDetails.quote(policyName) + ", policyVersion: " + policyVersion
+                        + (appliedPages.isEmpty() ? "" : ", pagePolicies: " + AuditDetails.quote(PagePolicyRequest.describe(appliedPages))));
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 
+        final HttpHeaders pageHeaders = new HttpHeaders();
+        if (!appliedPages.isEmpty()) {
+            pageHeaders.add(PAGE_POLICIES_HEADER, PagePolicyRequest.describe(appliedPages));
+        }
+
         return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .headers(pageHeaders)
                 .location(URI.create("/api/documents/" + documentId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(POLICY_NAME_HEADER, policyName)
@@ -458,6 +525,15 @@ public class FilterApiController extends AbstractApiController {
                 .header(POLICY_HASH_HEADER, policyContentHash)
                 .body(json.getBytes(StandardCharsets.UTF_8));
 
+    }
+
+    /** As {@link #policyHeaders(AppliedPolicy)}, with the policy of each page set named with page_policy. */
+    private static HttpHeaders policyHeaders(final RedactionOutcome outcome) {
+        final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
+        if (outcome.pagePolicies() != null && !outcome.pagePolicies().isEmpty()) {
+            headers.add(PAGE_POLICIES_HEADER, PagePolicyRequest.describe(outcome.pagePolicies()));
+        }
+        return headers;
     }
 
     /** Builds the response headers that report the applied policy name, version, and content hash. */

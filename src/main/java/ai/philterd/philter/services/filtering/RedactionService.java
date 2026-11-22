@@ -27,7 +27,9 @@ import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.phileas.services.pdf.PdfPagePolicies;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.RedactListsEntity;
@@ -224,6 +226,13 @@ public class RedactionService {
         return filter(policyName, userId, contextName, body, mimeType, null, filename, null);
     }
 
+    /** A PDF whose page sets in {@code pagePolicies} are redacted with their own policies. */
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body,
+                                   final MimeType mimeType, final String filename,
+                                   final List<PagePolicyRequest> pagePolicies) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, null, filename, null, () -> {}, false, pagePolicies);
+    }
+
     /**
      * Redacts the document and stamps the governing policy version onto the evidence. When
      * {@code pinnedPolicy} is non-null the redaction uses, and stamps, exactly that pinned version
@@ -235,7 +244,7 @@ public class RedactionService {
      */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
         // A request waiting on its response is refused when no PDF slot is free, rather than held.
-        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {}, false);
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {}, false, null);
     }
 
     /**
@@ -247,13 +256,14 @@ public class RedactionService {
                                    final String filename, final String requestedDocumentId,
                                    final Runnable beforePublication) throws Exception {
         return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId,
-                beforePublication, true);
+                beforePublication, true, null);
     }
 
     private RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                     final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
                                     final String filename, final String requestedDocumentId,
-                                    final Runnable beforePublication, final boolean waitForPdfSlot) throws Exception {
+                                    final Runnable beforePublication, final boolean waitForPdfSlot,
+                                    final List<PagePolicyRequest> pagePolicyRequests) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -273,26 +283,9 @@ public class RedactionService {
             policyJson = pinnedPolicy.policyJson();
             policyRevision = pinnedPolicy.version();
         } else {
-            // The cached copy only while it is the stored revision, checked without reading the policy, so an edit
-            // made on any instance governs the next request.
-            final Integer storedRevision = policyDataService.findRevision(policyName, userEntity.getId());
-            if (storedRevision == null) {
-                throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
-            }
-            final RedactionCache.CachedPolicy cached = redactionCache.getPolicy(userEntity.getId(), policyName);
-            if (cached != null && cached.getRevision() == storedRevision) {
-                policyJson = cached.getPolicyJson();
-                policyRevision = cached.getRevision();
-            } else {
-                final PolicyEntity policyEntity = policyDataService.findOne(policyName, userEntity.getId());
-                // The named policy must exist for this user.
-                if (policyEntity == null) {
-                    throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
-                }
-                policyJson = policyEntity.getPolicy();
-                policyRevision = policyEntity.getRevision();
-                redactionCache.putPolicy(userEntity.getId(), policyName, policyJson, policyRevision);
-            }
+            final RedactionCache.CachedPolicy stored = storedPolicy(policyName, userEntity.getId());
+            policyJson = stored.getPolicyJson();
+            policyRevision = stored.getRevision();
         }
 
         // The policy version stamped onto the evidence: name + revision + content fingerprint. The
@@ -318,6 +311,13 @@ public class RedactionService {
         final String refusal = PolicyLoadCheck.shared().refusal(phileasPolicy);
         if (refusal != null) {
             throw new ai.philterd.philter.services.policies.PolicyResolutionException(refusal);
+        }
+
+        final PagePolicies pagePolicies = effective != null
+                ? pinnedPagePolicies(effective.pagePolicies())
+                : resolvePagePolicies(pagePolicyRequests, userEntity);
+        if (pagePolicies != null && mimeType != MimeType.APPLICATION_PDF) {
+            throw new BadRequestException(PagePolicyRequest.PARAMETER + " applies only to PDF documents.");
         }
 
         // Initialize the contextCache. It is created per request and must be closed before returning
@@ -426,10 +426,18 @@ public class RedactionService {
 
         } else if(mimeType == MimeType.APPLICATION_PDF) {
 
-            PdfInputValidator.validate(body);
+            final int pageCount = PdfInputValidator.validate(body);
+            if (pagePolicies != null) {
+                try {
+                    pagePolicies.phileas().validate(pageCount);
+                } catch (final IllegalArgumentException e) {
+                    throw new BadRequestException(e.getMessage());
+                }
+            }
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
             try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
-                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.APPLICATION_PDF);
+                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body,
+                        MimeType.APPLICATION_PDF, pagePolicies == null ? null : pagePolicies.phileas());
             }
 
         } else if(mimeType == MimeType.APPLICATION_DOCX || mimeType == MimeType.APPLICATION_XLSX) {
@@ -484,10 +492,13 @@ public class RedactionService {
                 ledgerEntity.setTimestamp(new Date());
                 ledgerEntity.setFilename(ledgerFilename);
                 ledgerEntity.setType(incrementalRedaction.getSpan().getFilterType().getType());
-                // Stamp the governing policy version onto the entry as tamper-evident provenance.
-                ledgerEntity.setPolicyName(appliedPolicy.name());
-                ledgerEntity.setPolicyVersion(appliedPolicy.version());
-                ledgerEntity.setPolicyContentHash(appliedPolicy.contentHash());
+                // Stamp the governing policy version onto the entry as tamper-evident provenance: the policy of the
+                // page set the redaction was found on, else the request's policy.
+                final AppliedPolicy entryPolicy = pagePolicies == null ? appliedPolicy
+                        : pagePolicies.byLabel().getOrDefault(incrementalRedaction.getSpan().getPageAssignment(), appliedPolicy);
+                ledgerEntity.setPolicyName(entryPolicy.name());
+                ledgerEntity.setPolicyVersion(entryPolicy.version());
+                ledgerEntity.setPolicyContentHash(entryPolicy.contentHash());
                 ledgerEntity.setEffectiveHash(effective == null ? null : pinnedPolicy.effectiveHash());
 
                 // Compute and set this entry's hash so the chain is actually formed (previous -> current)
@@ -515,15 +526,81 @@ public class RedactionService {
         auditEventPublisher.auditEvent(documentId, AuditLogEvent.DOCUMENT_REDACTION_COMPLETED,
                 userEntity.getId(), null, null,
                 "redactions: " + filterResult.getExplanation().appliedSpans().size()
-                        + ", policy: " + AuditDetails.quote(appliedPolicy.name()) + ", policyVersion: " + appliedPolicy.version());
+                        + ", policy: " + AuditDetails.quote(appliedPolicy.name()) + ", policyVersion: " + appliedPolicy.version()
+                        + (pagePolicies == null ? "" : ", pagePolicies: " + AuditDetails.quote(PagePolicyRequest.describe(pagePolicies.applied()))));
 
-        return new RedactionOutcome(documentId, filterResult, appliedPolicy);
+        return new RedactionOutcome(documentId, filterResult, appliedPolicy,
+                pagePolicies == null ? List.of() : pagePolicies.applied());
 
         } finally {
             // Release the per-request cache (closes the Valkey/Redis pool when one is configured).
             contextCache.close();
         }
 
+    }
+
+    // The user's current policy by name, from the in-process cache while it holds the stored revision, else the
+    // database. The revision is checked without reading the policy, so an edit made on any instance governs the next
+    // request. The JSON can contain PII in filter-strategy conditions, which is why the cache is in-process only.
+    private RedactionCache.CachedPolicy storedPolicy(final String policyName, final String userId) throws PolicyNotFoundException {
+        final Integer storedRevision = policyDataService.findRevision(policyName, userId);
+        if (storedRevision == null) {
+            throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
+        }
+        final RedactionCache.CachedPolicy cached = redactionCache.getPolicy(userId, policyName);
+        if (cached != null && cached.getRevision() == storedRevision) {
+            return cached;
+        }
+        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
+        if (policyEntity == null) {
+            throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
+        }
+        redactionCache.putPolicy(userId, policyName, policyEntity.getPolicy(), policyEntity.getRevision());
+        return new RedactionCache.CachedPolicy(policyEntity.getPolicy(), policyEntity.getRevision());
+    }
+
+    /** Page sets' policies for Phileas, the version of each for the response, and each by its span label for the ledger. */
+    private record PagePolicies(PdfPagePolicies phileas, List<AppliedPagePolicy> applied, Map<String, AppliedPolicy> byLabel) {
+    }
+
+    // The current version of each requested page set's policy, or null when none was requested.
+    private PagePolicies resolvePagePolicies(final List<PagePolicyRequest> requests, final UserEntity userEntity)
+            throws PolicyNotFoundException {
+        if (requests == null || requests.isEmpty()) {
+            return null;
+        }
+        final List<PagePolicySnapshot> snapshots = new java.util.ArrayList<>();
+        for (final PagePolicyRequest request : requests) {
+            final RedactionCache.CachedPolicy stored = storedPolicy(request.policyName(), userEntity.getId());
+            snapshots.add(new PagePolicySnapshot(request.pages(), request.policyName(), stored.getRevision(),
+                    PolicyVersionDataService.contentHash(stored.getPolicyJson()),
+                    gson.toJson(resolveEffectivePolicy(stored.getPolicyJson(), userEntity))));
+        }
+        return pinnedPagePolicies(snapshots);
+    }
+
+    private PagePolicies pinnedPagePolicies(final List<PagePolicySnapshot> snapshots) {
+        if (snapshots == null || snapshots.isEmpty()) {
+            return null;
+        }
+        final PdfPagePolicies phileas = new PdfPagePolicies();
+        final List<AppliedPagePolicy> applied = new java.util.ArrayList<>();
+        final Map<String, AppliedPolicy> byLabel = new java.util.HashMap<>();
+        for (final PagePolicySnapshot snapshot : snapshots) {
+            final Policy policy = gson.fromJson(snapshot.policyJson(), Policy.class);
+            final String refusal = PolicyLoadCheck.shared().refusal(policy);
+            if (refusal != null) {
+                throw new ai.philterd.philter.services.policies.PolicyResolutionException(
+                        "The policy '" + snapshot.name() + "': " + refusal);
+            }
+            // Labeled with the page set, so a policy can be assigned to more than one, and the policy named default
+            // does not take the label Phileas reserves for unassigned pages.
+            phileas.assign(snapshot.pages(), policy, snapshot.pages());
+            final AppliedPolicy appliedPolicy = new AppliedPolicy(snapshot.name(), snapshot.version(), snapshot.contentHash());
+            applied.add(new AppliedPagePolicy(snapshot.pages(), appliedPolicy));
+            byLabel.put(snapshot.pages(), appliedPolicy);
+        }
+        return new PagePolicies(phileas, List.copyOf(applied), Map.copyOf(byLabel));
     }
 
     /**
@@ -625,6 +702,15 @@ public class RedactionService {
     }
 
     public String captureEffectiveConfiguration(final PolicyEntity policy, final String contextName) {
+        return captureEffectiveConfiguration(policy, contextName, List.of());
+    }
+
+    /** A page set's stored policy and the content hash of its retained snapshot, for a queued PDF. */
+    public record PagePolicyCapture(String pages, PolicyEntity policy, String contentHash) {
+    }
+
+    public String captureEffectiveConfiguration(final PolicyEntity policy, final String contextName,
+                                                final List<PagePolicyCapture> pagePolicies) {
         final UserEntity user = userService.findOneById(policy.getUserId());
         if (user == null) throw new IllegalStateException("Account no longer exists.");
         final Policy resolved = resolveEffectivePolicy(policy.getPolicy(), user);
@@ -640,7 +726,21 @@ public class RedactionService {
         }
         final com.google.gson.JsonElement json = gson.toJsonTree(resolved);
         freezeEnvironmentKeys(json);
-        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json), context == null ? null : ContextSnapshots.toJson(context)));
+        final List<PagePolicySnapshot> pages = new java.util.ArrayList<>();
+        for (final PagePolicyCapture page : pagePolicies) {
+            final Policy pagePolicy = resolveEffectivePolicy(page.policy().getPolicy(), user);
+            final String pageRefusal = PolicyLoadCheck.shared().refusal(pagePolicy);
+            if (pageRefusal != null) {
+                throw new ai.philterd.philter.services.policies.PolicyResolutionException(
+                        "The policy '" + page.policy().getName() + "': " + pageRefusal);
+            }
+            final com.google.gson.JsonElement pageJson = gson.toJsonTree(pagePolicy);
+            freezeEnvironmentKeys(pageJson);
+            pages.add(new PagePolicySnapshot(page.pages(), page.policy().getName(), page.policy().getRevision(),
+                    page.contentHash(), gson.toJson(pageJson)));
+        }
+        final String captured = gson.toJson(new EffectiveConfiguration(gson.toJson(json),
+                context == null ? null : ContextSnapshots.toJson(context), pages.isEmpty() ? null : pages));
         ai.philterd.philter.services.policies.EffectiveConfigurationLimits.requireSize(captured);
         return captured;
     }

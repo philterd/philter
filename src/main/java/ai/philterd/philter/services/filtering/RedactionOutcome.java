@@ -23,5 +23,11 @@ import ai.philterd.phileas.model.filtering.AbstractFilterResult;
  * <p>{@link #documentId()} is what the ledger chain and audit trail were written under, so it is the
  * id to return to the caller: {@code GET /api/ledger/{documentId}} resolves it.
  */
-public record RedactionOutcome(String documentId, AbstractFilterResult result, AppliedPolicy appliedPolicy) {
+public record RedactionOutcome(String documentId, AbstractFilterResult result, AppliedPolicy appliedPolicy,
+                               java.util.List<AppliedPagePolicy> pagePolicies) {
+
+    public RedactionOutcome(final String documentId, final AbstractFilterResult result, final AppliedPolicy appliedPolicy) {
+        this(documentId, result, appliedPolicy, java.util.List.of());
+    }
+
 }

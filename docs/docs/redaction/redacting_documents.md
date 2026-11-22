@@ -38,6 +38,28 @@ A body declared as Word or Excel must be a document of that type: an Excel workb
 
 In the [redaction ledger](ledgers.md), the start position of a redaction in a Word or Excel document is its offset within the paragraph, cell, or other piece of text it was found in, not within the whole document.
 
+## Different Policies for Different Pages of a PDF
+
+A PDF that bundles different documents, such as a cover letter followed by medical records, can be redacted with a different policy for each set of pages in one request. Add a `page_policy` parameter, `<pages>:<policy>`, for each page set:
+
+```bash
+curl -k -X POST "https://localhost:8080/api/filter?p=my-policy&page_policy=2-5,8:records&page_policy=12-:exhibits&async=false" \
+  --data-binary @bundle.pdf \
+  -H "Content-Type: application/pdf" \
+  -H "Accept: application/pdf" \
+  -H "Authorization: Bearer $API_KEY" \
+  -o redacted.pdf
+```
+
+Pages are numbered from 1. A page set is single pages (`3`), ranges (`2-5`), and open-ended ranges (`12-`, page 12 to the end), separated by commas. A request can name up to 50 page sets.
+
+*   **Unassigned pages** are redacted with the policy named by `p`, so every page is redacted under some policy.
+*   **Filters and bounding boxes.** Each page's text is redacted with the filters and strategies of its page set's policy. A policy's bounding boxes are drawn only on the pages it is assigned to; those of the `p` policy only on unassigned pages.
+*   **Context.** One [context](contexts.md) spans the document, so where two policies both use the `CONTEXT` replacement scope, a value gets the same replacement on pages under either policy.
+*   **Rendering.** The `config.pdf` settings of the `p` policy, such as `dpi` and `redactionColor`, render the whole document. A strategy's own `color` still applies.
+*   **Evidence.** The `X-Philter-Page-Policies` response header names the policy and version that redacted each page set, and each [ledger](ledgers.md) entry is stamped with the policy of the page it was found on. A queued PDF is redacted with the version of each policy in force when it was accepted.
+*   **Validation.** A malformed page set, page sets that overlap, a page set beyond the document's last page, or `page_policy` on a document that is not a PDF is refused with `400 Bad Request`, and a policy that does not exist with `404 Not Found`, before anything is redacted.
+
 ## The Comprehensive Redaction Workflow
 
 When you submit a document to Philter for redaction:

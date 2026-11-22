@@ -26,6 +26,7 @@ The types of sensitive information found and how each type is redacted is determ
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF, Word, and Excel only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
+* `page_policy` - **PDF only.** Optional and repeatable. `<pages>:<policy>` redacts those pages with the named policy instead of `p`, such as `page_policy=2-5,8:records&page_policy=12-:exhibits`. Unassigned pages use `p`, whose `config.pdf` settings render the whole document. See [Different policies for different pages of a PDF](../../redaction/redacting_documents.md#different-policies-for-different-pages-of-a-pdf).
 * `fairness_key` - **Asynchronous PDF, Word, and Excel only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
 * `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF, ZIP, Word, and Excel requests with `sign=true` are refused with `400 Bad Request`, because those responses are not signed.
 
@@ -67,6 +68,7 @@ Every `filter` response reports which policy version governed the request, so th
 
 * `X-Philter-Policy-Name` - The name of the policy that was applied.
 * `X-Philter-Policy-Version` - The revision (version) of that policy that was applied. For an asynchronous PDF request the version is pinned when the request is accepted, and the `202 Accepted` response carries these headers; the deferred redaction is then governed by that pinned version.
+* `X-Philter-Page-Policies` - Present only on a PDF request with `page_policy`. The policy and version that redacted each page set, as `pages=policy@version` separated by `; `, for example `2-5,8=records@3; 12-=exhibits@1`. The other headers name the `p` policy, which redacted the unassigned pages.
 
 Every successful plain-text `filter` response (200 OK) also includes:
 

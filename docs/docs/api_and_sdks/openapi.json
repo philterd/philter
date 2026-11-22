@@ -4568,6 +4568,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Optional, repeatable. Redacts a set of pages with a different policy, as <pages>:<policy>, such as 2-5,8:records or 12-:exhibits. Pages are numbered from 1, and a page set is single pages, ranges, and open-ended ranges separated by commas. Pages not assigned are redacted with the policy named by p, whose config.pdf settings render the whole document. One context spans the document. Page sets may not overlap or extend beyond the last page.",
+            "name": "page_policy",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         ],
         "requestBody": {
@@ -4638,6 +4651,12 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Page-Policies": {
+                "description": "PDF only, when page_policy is given: the policy and version that redacted each page set, as pages=policy@version separated by \"; \".",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Philter-Policy-Hash": {
                 "schema": {
                   "type": "string"
@@ -4689,6 +4708,12 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Page-Policies": {
+                "description": "PDF only, when page_policy is given: the policy and version that redacted each page set, as pages=policy@version separated by \"; \".",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Philter-Policy-Hash": {
                 "schema": {
                   "type": "string"
@@ -4710,7 +4735,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, or sign=true on a PDF, Word, or Excel request.",
+            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, sign=true on a PDF, Word, or Excel request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.",
             "content": {
               "application/json": {
                 "schema": {

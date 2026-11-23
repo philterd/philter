@@ -275,7 +275,7 @@ A filter strategy determines the transformation applied to each match. A filter'
 | `ABBREVIATE` | Replace with the uppercase initials of the matched value's words. |
 | `MAP_REPLACE` | Replace using a lookup table, an optional generator, and a fallback strategy. See [MAP_REPLACE](filter_strategies.md#the-map_replace-filter-strategy). |
 
-Not every filter supports every strategy. The `date` and `zipCode` filters do not support `FPE_ENCRYPT_REPLACE`, `LAST_4`, `ABBREVIATE`, or `MAP_REPLACE`; PhEye filters do not support `LAST_4` or `MAP_REPLACE`. The `zipCode` filter adds `ZERO_LEADING`.
+Not every filter supports every strategy. The `date` and `zipCode` filters do not support `FPE_ENCRYPT_REPLACE`, `LAST_4`, `ABBREVIATE`, or `MAP_REPLACE`; PhEye filters do not support `LAST_4` or `MAP_REPLACE`. The `zipCode` filter adds `ZERO_LEADING` and [`SAFE_HARBOR`](filter_strategies.md#the-safe_harbor-filter-strategy). Neither is in the published 1.3.0 schema's `strategy` enum ([philterd/phisql#40](https://github.com/philterd/phisql/issues/40)), so a tool that validates a policy against the schema, such as the policy editor, reports a policy using them as invalid. Philter does not validate against the schema and accepts them.
 
 ### Date-only strategies
 

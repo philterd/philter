@@ -24,6 +24,9 @@ Uses Phileas 4.6.0.
   `<pages>:<policy>`, redacts a page set with its own policy, with `p` for the pages not assigned and
   one context for the whole document. The `X-Philter-Page-Policies` header and each ledger entry name
   the policy that applied, and a queued PDF pins every policy's version when it is accepted.
+- **`SAFE_HARBOR` zip code strategy:** documented for the zip code filter
+  ([#209](https://github.com/philterd/philter/issues/209)). See the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
 - **Random date shift per context:** a context's random date shift (see the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md)) is kept
   with the context, outside its entries, so it is never evicted, listed, or deleted with entries

@@ -42,6 +42,7 @@ The filter strategies are described below. Each filter type can specify zero or 
 * [MAP_REPLACE](#the-map_replace-filter-strategy)
 * [TRUNCATE](#the-truncate-filter-strategy)
 * [ZERO_LEADING](#the-zero_leading-filter-strategy)
+* [SAFE_HARBOR](#the-safe_harbor-filter-strategy)
 * [Date strategies](#date-filter-strategies) (`TRUNCATE_TO_YEAR`, `SHIFT`, `RELATIVE`)
 
 Only `CRYPTO_REPLACE` and `FPE_ENCRYPT_REPLACE` can be reversed through [re-identification](../redaction/re-identification.md). The other strategies do not encode the original value in their output; to keep originals for them, enable the [redaction ledger](../redaction/ledgers.md).
@@ -353,6 +354,28 @@ The `ZERO_LEADING` filter strategy is only available to zip code filters. An exa
          "zipCodeFilterStrategies": [
             {
                "strategy": "ZERO_LEADING"
+            }
+         ]
+      }
+   }
+}
+```
+
+### The `SAFE_HARBOR` Filter Strategy
+
+Available only to zip codes, this strategy is designed to apply the HIPAA Safe Harbor three-digit zip code rule (45 CFR 164.514(b)(2)(i)(B)). It keeps the first 3 digits when the combined population of the zip codes that start with those digits is greater than 20,000, and otherwise replaces the zip code with `000`. A prefix that is not in the bundled data is also replaced with `000`. For example, `90210` and `90210-0110` become `902`, and `03602` and `03602-1234` become `000`.
+
+Populations come from the 2020 US Census data bundled with Philter. The data is an approximation of USPS zip code populations, and the result can differ from what current population figures would give. Using this strategy does not by itself make output HIPAA compliant: you are responsible for validating the output against your own data and requirements.
+
+An example zip code filter using the `SAFE_HARBOR` filter strategy:
+
+```
+{
+   "identifiers": {
+      "zipCode": {
+         "zipCodeFilterStrategies": [
+            {
+               "strategy": "SAFE_HARBOR"
             }
          ]
       }

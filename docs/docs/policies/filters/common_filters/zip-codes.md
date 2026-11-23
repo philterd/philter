@@ -31,6 +31,7 @@ The filter may have zero or more filter strategies. When no filter strategy is g
 | `HASH_SHA256_REPLACE` | Replace the sensitive text with its SHA256 hash value.                                                                                              |
 | `TRUNCATE`            | Keep the leading `truncateLeaveCharacters` digits (1 to 4, default 4) and replace the rest with `truncateCharacter` (default `*`).                |
 | `ZERO_LEADING`        | Replace the sensitive text by zeroing the first 3 digits.                                                                                           |
+| `SAFE_HARBOR`         | Keep the first 3 digits when their population in the bundled 2020 US Census data is greater than 20,000, and replace the zip code with `000` otherwise. See [SAFE_HARBOR](../../filter_strategies.md#the-safe_harbor-filter-strategy). |
 
 ### Conditions
 

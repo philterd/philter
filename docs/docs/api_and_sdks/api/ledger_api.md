@@ -78,6 +78,8 @@ Returns `200 OK` with a page of the chain's entries in chain order, `total`, how
 }
 ```
 
+`startPosition` is the character offset of the redacted value. In a plain-text document it is the offset in the text. In a PDF it is the offset in the text Philter extracted from the whole document, in which each line's text follows the previous line's with no separator, across pages, so it is not a page coordinate. The genesis entry, which records no redaction, has `startPosition` `0` and an empty `type`.
+
 `valid` is `true` only when `hashChainValid` and `signaturesValid` are both `true`; an unsigned entry makes `signaturesValid` `false`. Fields with no value are omitted: `effectiveHash` appears only on entries from asynchronous requests, and `signature` and `signingKeyId` only on signed entries.
 
 > **Security:** reading a chain does not return the original values that were redacted, only the replacements that appear in the redacted document. The originals are carried by the [export](#export-a-documents-ledger-chain), which requires the separate `ledger:export` scope. Access is restricted to the chain's owner either way.

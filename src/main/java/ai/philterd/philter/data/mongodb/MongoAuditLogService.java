@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-/** MongoDB implementation of {@link AuditLogService}, reading the {@code audit_events} collection. */
+/** MongoDB implementation of {@link ai.philterd.philter.audit.AuditLogService}, reading the {@code audit_events} collection. */
 public class MongoAuditLogService extends StoredAuditLogService {
 
     private static final String DATABASE = "philter";

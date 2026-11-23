@@ -114,14 +114,7 @@ public interface ContextDataService {
     ServiceResponse create(final String contextName, final String userId, final boolean disambiguation,
             final String disambiguationScope, final boolean ledger);
 
-    /**
-     * Returns every context for every user. Intended for admin-only views; ordinary access must use the
-     * owner-scoped {@link #findAll(String)}.
-     */
-    /**
-     * Returns one page of contexts across every user, ordered by name. Intended for admin-only views;
-     * ordinary access must use the owner-scoped {@link #findAll(String)}.
-     */
+    /** The user's context with this name, or null when the user has none. */
     ContextEntity findOneByNameAndUserId(final String contextName, final String userId);
 
     /**

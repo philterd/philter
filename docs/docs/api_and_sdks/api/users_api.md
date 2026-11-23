@@ -1,6 +1,6 @@
 # Users API
 
-These endpoints create and manage users. They are how a deployment is administered: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface, such as [Philter UI](https://github.com/philterd/philter-ui) (in development).
+These endpoints create and manage users. They are how a deployment is administered: by automation such as CI, a marketplace image, or an infrastructure-as-code run, or by a separate user interface, such as [Philter Workspace](https://philterd.github.io/philter-workspace/) ([repository](https://github.com/philterd/philter-workspace)).
 
 Requests authenticate with [API keys](../../account/api_keys.md). Create and manage a user's keys with the [API Keys API](api_keys_api.md). A user can also have a password, for a person who [signs in](sign_in_api.md) through a user interface. A user without a password can only use API keys. No endpoint returns a password or its hash. See [Passwords](#passwords).
 

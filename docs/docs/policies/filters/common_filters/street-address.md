@@ -11,15 +11,18 @@ This filter identifies US-style street addresses in text and reports them with t
 
 It also detects PO boxes, such as `PO Box 1234`, `P.O. Box 56`, and `Post Office Box 789`.
 
+An address must be on one line: its parts may be separated by spaces and tabs, not line breaks. In a multi-line address block, the street line is detected, so in `214 Juniper Court` above `Cedar Falls, IA 50613` the filter reports `214 Juniper Court`. A unit alone on the next line, such as `Apt 4B` below `12 Pine Rd`, is included in the street's span. A line that holds more than a unit, such as `Room 5 is booked` below `12 Pine Rd`, is not, and the span is the street line alone.
+
 For example, in `Send it to 123 Main Street, Suite 100, Springfield, IL 62701`, the filter reports `123 Main Street, Suite 100`. The city, state, and ZIP code are not part of the span; use the [City](../locations/cities.md), [State](../locations/states.md), and [Zip Code](zip-codes.md) filters to detect them. A period directly after the street type is part of the span, since abbreviations such as `St.` end with one, so an address at the end of a sentence includes the sentence's period.
 
 Not detected:
 
+* An address split across lines, such as `123 Main` at the end of one line and `Street` at the start of the next. A PO box split across lines, such as `PO Box` and `1234`, is not detected either.
 * An address without a street type, such as `42 Broadway`.
 * Addresses written in other countries' formats, such as `Hauptstrasse 5`.
 * Rural route addresses, such as `RR 2 Box 15`.
 
-Matching ignores case, and several street types are ordinary words (`Path`, `Run`, `Walk`, `Point`, `Way`), so ordinary text can be reported as an address: `Walked 5 miles down the path` contains a number, words, and `path`. Detection is based on the format of the text; validate the results against your own documents.
+Matching ignores case, and several street types are ordinary words (`Path`, `Run`, `Walk`, `Point`, `Way`), so ordinary text can be reported as an address: `Walked 5 miles down the path` contains a number, words, and `path`. Detection is based on the format of the text; validate the results against your own documents, in particular text with hard-wrapped lines, such as text extracted from a PDF or a fixed-width email, where an address can be split across lines.
 
 ### Required Parameters
 

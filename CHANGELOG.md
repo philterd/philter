@@ -37,7 +37,8 @@ Uses Phileas 4.6.0.
   on a migrated database. See [Upgrading](docs/docs/upgrading.md#upgrading-within-4x).
 - **Detection and output for existing policies:** Phileas 4.6.0 changes what some filters detect and
   how overlapping spans are replaced. For example, the currency filter now detects amounts written with
-  a currency name, such as `100 dollars`. Each page of a PDF is now read once, so the ledger no longer
+  a currency name, such as `100 dollars`, and the street address filter finds an address only within
+  one line ([#210](https://github.com/philterd/philter/issues/210)). Each page of a PDF is now read once, so the ledger no longer
   records duplicate entries for pages after the first. See the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
 - **`managed_healthcare_phi` uses `zipCodeFilterStrategies`:** the managed policy no longer uses the

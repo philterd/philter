@@ -71,7 +71,7 @@ public class LimitsApiController extends AbstractApiController {
     @Operation(
             summary = "Get Philter's limits and the caller's capabilities.",
             description = "Returns the sizes, lengths, and name rules Philter enforces, the session key timeouts, and "
-                    + "what the caller may do: their role, how many contexts they have, and whether they may reach "
+                    + "what the caller may do: their username, their role, how many contexts they have, and whether they may reach "
                     + "other users' resources or delete ledger chains. Each value is the one Philter enforces, "
                     + "including any set through its environment variable. Any key may call it, whatever its scopes, "
                     + "including a session key that must first change its password or enroll in MFA, since it "
@@ -96,6 +96,7 @@ public class LimitsApiController extends AbstractApiController {
         final boolean admin = UserService.ROLE_ADMIN.equalsIgnoreCase(role);
 
         final LimitsResponse.Caller caller = new LimitsResponse.Caller(
+                user == null ? null : user.getUsername(),
                 role,
                 contextDataService.count(apiKeyEntity.getUserId()),
                 admin && isCrossUserAccessEnabled(),

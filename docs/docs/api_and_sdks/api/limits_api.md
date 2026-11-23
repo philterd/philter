@@ -77,6 +77,7 @@ curl -k "https://localhost:8080/api/limits" \
     "maxLifetimeMinutes": 720
   },
   "caller": {
+    "username": "jordan",
     "role": "admin",
     "contextCount": 3,
     "crossUserAccess": false,
@@ -119,6 +120,7 @@ The values above are the defaults. Each one in the response is the value the run
 
 ### The caller
 
+* `caller.username` - The username of the user the API key or session key belongs to. It is the value an administrator passes as `owner`, with cross-user access enabled, to reach that user's resources: for example, to open a [ledger chain](ledger_api.md) written with this key while signed in as another administrator.
 * `caller.role` - The caller's role, read when the request is made, so a role changed since sign-in shows here.
 * `caller.contextCount` - How many contexts the caller has.
 * `caller.crossUserAccess` - Whether the caller may reach other users' resources with `owner` and `all_users`: `true` for an administrator when `ADMIN_CROSS_USER_ACCESS_ENABLED` is on.

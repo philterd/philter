@@ -7056,7 +7056,7 @@
           "Limits"
         ],
         "summary": "Get Philter's limits and the caller's capabilities.",
-        "description": "Returns the sizes, lengths, and name rules Philter enforces, the session key timeouts, and what the caller may do: their role, how many contexts they have, and whether they may reach other users' resources or delete ledger chains. Each value is the one Philter enforces, including any set through its environment variable. Any key may call it, whatever its scopes, including a session key that must first change its password or enroll in MFA, since it describes the API and the caller's own access. For an administrator, crossUserAccess and ledgerDeletion reflect ADMIN_CROSS_USER_ACCESS_ENABLED and LEDGER_DELETION_ENABLED; for anyone else they are false, so the response does not reveal those settings.",
+        "description": "Returns the sizes, lengths, and name rules Philter enforces, the session key timeouts, and what the caller may do: their username, their role, how many contexts they have, and whether they may reach other users' resources or delete ledger chains. Each value is the one Philter enforces, including any set through its environment variable. Any key may call it, whatever its scopes, including a session key that must first change its password or enroll in MFA, since it describes the API and the caller's own access. For an administrator, crossUserAccess and ledgerDeletion reflect ADMIN_CROSS_USER_ACCESS_ENABLED and LEDGER_DELETION_ENABLED; for anyone else they are false, so the response does not reveal those settings.",
         "operationId": "getLimits",
         "parameters": [
           {
@@ -18810,6 +18810,10 @@
           },
           "role": {
             "description": "The caller's role, read when the request is made.",
+            "type": "string"
+          },
+          "username": {
+            "description": "The username of the user the API key or session key belongs to: the value an administrator passes as owner to reach this user's resources, such as a ledger chain this key wrote.",
             "type": "string"
           }
         }

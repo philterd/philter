@@ -94,6 +94,7 @@ class LimitsApiControllerTest {
     private void callerHasRole(final String role) {
         final UserEntity user = new UserEntity();
         user.setId(callerUserId);
+        user.setUsername(role + "-caller");
         user.setRole(role);
         when(userService.findOneById(callerUserId)).thenReturn(user);
     }
@@ -169,6 +170,7 @@ class LimitsApiControllerTest {
                 .andExpect(jsonPath("$.auditExport.maxPageSize").value(AuditApiController.EXPORT_MAX_LIMIT))
                 .andExpect(jsonPath("$.sessionKeys.idleTimeoutMinutes").value(SessionKeyConfig.idleTimeoutMinutes()))
                 .andExpect(jsonPath("$.sessionKeys.maxLifetimeMinutes").value(SessionKeyConfig.maxLifetimeMinutes()))
+                .andExpect(jsonPath("$.caller.username").value("user-caller"))
                 .andExpect(jsonPath("$.caller.role").value("user"))
                 .andExpect(jsonPath("$.caller.contextCount").value(3));
 
@@ -182,6 +184,7 @@ class LimitsApiControllerTest {
 
         getLimits(true, true)
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caller.username").value("admin-caller"))
                 .andExpect(jsonPath("$.caller.role").value("admin"))
                 .andExpect(jsonPath("$.caller.crossUserAccess").value(true))
                 .andExpect(jsonPath("$.caller.ledgerDeletion").value(true));

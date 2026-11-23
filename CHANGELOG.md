@@ -24,6 +24,9 @@ Uses Phileas 4.6.0.
   `<pages>:<policy>`, redacts a page set with its own policy, with `p` for the pages not assigned and
   one context for the whole document. The `X-Philter-Page-Policies` header and each ledger entry name
   the policy that applied, and a queued PDF pins every policy's version when it is accepted.
+- **The caller's username in `GET /api/limits`:** `caller.username` names the user the API key or
+  session key belongs to, the value an administrator passes as `owner` to reach that user's resources
+  ([#207](https://github.com/philterd/philter/issues/207)).
 - **`SAFE_HARBOR` zip code strategy:** documented for the zip code filter
   ([#209](https://github.com/philterd/philter/issues/209)). See the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).

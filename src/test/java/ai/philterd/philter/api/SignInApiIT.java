@@ -241,7 +241,7 @@ class SignInApiIT {
     }
 
     @Test
-    @DisplayName("The limits need a key, and a session key reads its own role and capabilities")
+    @DisplayName("The limits need a key, and a session key reads its own username, role, and capabilities")
     void limits() throws Exception {
 
         final HttpResponse<String> anonymous = httpClient.send(HttpRequest.newBuilder(URI.create(baseUrl + "/api/limits"))
@@ -253,10 +253,19 @@ class SignInApiIT {
         final HttpResponse<String> response = send("GET", "/api/limits", key, null);
         assertEquals(200, response.statusCode(), response.body());
         final JsonObject caller = gson.fromJson(response.body(), JsonObject.class).getAsJsonObject("caller");
+        assertEquals(username(user), caller.get("username").getAsString());
         assertEquals("user", caller.get("role").getAsString());
         assertEquals(contextDataService.count(user), caller.get("contextCount").getAsInt());
         assertFalse(caller.get("crossUserAccess").getAsBoolean());
         assertFalse(caller.get("ledgerDeletion").getAsBoolean());
+
+        // An administrator's key reads its own username too.
+        final String admin = seedUser("admin", PASSWORD, false);
+        final String adminKey = gson.fromJson(signIn(username(admin), PASSWORD).body(), JsonObject.class).get("apiKey").getAsString();
+        final JsonObject adminCaller = gson.fromJson(send("GET", "/api/limits", adminKey, null).body(), JsonObject.class)
+                .getAsJsonObject("caller");
+        assertEquals(username(admin), adminCaller.get("username").getAsString());
+        assertEquals("admin", adminCaller.get("role").getAsString());
 
     }
 

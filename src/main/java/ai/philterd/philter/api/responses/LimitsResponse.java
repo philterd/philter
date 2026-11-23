@@ -384,18 +384,24 @@ public class LimitsResponse {
     @Schema(name = "CallerCapabilities")
     public static class Caller {
 
+        private final String username;
         private final String role;
         private final int contextCount;
         private final boolean crossUserAccess;
         private final boolean ledgerDeletion;
 
-        public Caller(final String role, final int contextCount, final boolean crossUserAccess,
+        public Caller(final String username, final String role, final int contextCount, final boolean crossUserAccess,
                       final boolean ledgerDeletion) {
+            this.username = username;
             this.role = role;
             this.contextCount = contextCount;
             this.crossUserAccess = crossUserAccess;
             this.ledgerDeletion = ledgerDeletion;
         }
+
+        @Schema(description = "The username of the user the API key or session key belongs to: the value an "
+                + "administrator passes as owner to reach this user's resources, such as a ledger chain this key wrote.")
+        public String getUsername() { return username; }
 
         @Schema(description = "The caller's role, read when the request is made.")
         public String getRole() { return role; }

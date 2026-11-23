@@ -46,6 +46,11 @@ class PolicyResourceCheckTest {
         return "{\"identifiers\":{\"pheyes\":[{\"phEyeConfiguration\":" + configuration + "}]}}";
     }
 
+    /** A configuration naming {@code path} as its model, quoted by Gson so a Windows path's backslashes are escaped. */
+    private static String modelPath(final Path path) {
+        return "{\"modelPath\":" + new Gson().toJson(path.toString()) + "}";
+    }
+
     @Test
     void aPolicyThatReachesNothingIsAllowed() {
         assertNull(check.refusal(policy("{\"identifiers\":{\"ssn\":{}}}")));
@@ -117,10 +122,10 @@ class PolicyResourceCheckTest {
                 Map.of("PHEYE_MODELS_DIRECTORY", models.toString())::get);
 
         assertNull(withModels.refusal(policy(pheye("{\"modelPath\":\"pii-en-small\"}"))));
-        assertNull(withModels.refusal(policy(pheye("{\"modelPath\":\"" + model.toRealPath() + "\"}"))));
+        assertNull(withModels.refusal(policy(pheye(modelPath(model.toRealPath())))));
         assertTrue(withModels.refusal(policy(pheye("{\"modelPath\":\"pii-en-large\"}"))).startsWith(
                 "The PhEye modelPath is not a model"));
-        assertTrue(withModels.refusal(policy(pheye("{\"modelPath\":\"" + models.toRealPath() + "\"}"))) != null);
+        assertTrue(withModels.refusal(policy(pheye(modelPath(models.toRealPath())))) != null);
     }
 
 }

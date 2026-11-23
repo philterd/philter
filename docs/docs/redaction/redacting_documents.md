@@ -22,13 +22,15 @@ Philter does not redact other Office formats (`.doc`, `.xls`, PowerPoint, templa
 Office documents keep copies of text outside the visible body, so Philter redacts these as well:
 
 *   **Word:** body paragraphs and tables, headers and footers, footnotes, endnotes, comments, text in shapes, text boxes, and SmartArt, chart text and cached chart values, hyperlink targets, field instructions, tracked deletions, and embedded Word and Excel documents.
-*   **Excel:** text and number cells, the shared strings redacted cells leave behind, print headers and footers, comments and their authors, text in shapes and text boxes, chart text and cached chart values, cached formula results, pivot caches, and embedded Word and Excel documents.
+*   **Excel:** text and number cells, the shared strings redacted cells leave behind, print headers and footers, comments, text in shapes and text boxes, chart text and cached chart values, cached formula results, pivot caches, and embedded Word and Excel documents.
+
+Who wrote and edited a document is cleared whatever the policy, in embedded Word and Excel documents too, and is not run through detection. Word comment and tracked-change authors and Excel comment authors become `Redacted`, Word comment initials and `word/people.xml` are removed, Excel threaded-comment people lose their identifiers, and the creator, last modified by, company, and manager document properties are emptied.
 
 Embedded objects that cannot be inspected, anything other than an embedded Word or Excel document or one that cannot be read, are removed. Parts of the document that redaction does not change are returned unchanged.
 
 Limitations:
 
-*   Document properties, such as the author in `docProps/core.xml`, are not redacted, and neither are the author names Word records on comments and tracked changes.
+*   Document properties other than those cleared above, such as the title, subject, keywords, and custom properties, are not redacted.
 *   A Word paragraph that is redacted loses its inline formatting, and hyperlinks and fields in it become plain text.
 *   A redacted Excel cell is written as text, and a redacted formula cell loses its formula. A workbook with a redacted cell recalculates when it is opened.
 *   Excel cells are scanned by their stored value, not as Excel displays them. Excel stores most dates as serial numbers, so a date displayed as `3/14/1985` is scanned as `31120` and is not found by the date filter.

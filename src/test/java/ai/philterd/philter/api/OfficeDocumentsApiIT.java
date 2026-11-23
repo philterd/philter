@@ -139,6 +139,22 @@ class OfficeDocumentsApiIT {
     }
 
     @Test
+    @DisplayName("Who wrote a Word document is cleared, though the policy detects no names")
+    void authorsAreCleared() throws Exception {
+        final String author = "Avery Example";
+        final HttpResponse<byte[]> response = redact("?p=ssn-only&async=false", DOCX,
+                OfficeDocuments.docxByAuthor(TEXT, author));
+
+        assertEquals(200, response.statusCode(), new String(response.body()));
+        final String document = docxText(response.body());
+        final String core = OfficeDocuments.entry(response.body(), "docProps/core.xml");
+        assertFalse(document.contains(author), document);
+        assertTrue(document.contains("w:author=\"Redacted\""), document);
+        assertFalse(core.contains(author), core);
+        assertFalse(document.contains(SSN), document);
+    }
+
+    @Test
     @DisplayName("An Excel workbook is redacted synchronously and returned as an Excel workbook")
     void anExcelWorkbookIsRedacted() throws Exception {
         final HttpResponse<byte[]> response = redact("?p=ssn-only&async=false", XLSX, OfficeDocuments.xlsx(TEXT));

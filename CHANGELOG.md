@@ -18,7 +18,8 @@ Uses Phileas 4.6.0.
   and returns an editable document of the same format, synchronously or queued, with policies,
   contexts, and the ledger as for PDF ([#213](https://github.com/philterd/philter/issues/213)). A body
   declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
-  `OFFICE_MAX_ENTRIES` limit what one may decompress to.
+  `OFFICE_MAX_ENTRIES` limit what one may decompress to. Author names and the creator, last modified by,
+  company, and manager properties are cleared whatever the policy.
 - **Different policies for different pages of a PDF:** the repeatable `page_policy` parameter,
   `<pages>:<policy>`, redacts a page set with its own policy, with `p` for the pages not assigned and
   one context for the whole document. The `X-Philter-Page-Policies` header and each ledger entry name
@@ -31,6 +32,10 @@ Uses Phileas 4.6.0.
   a currency name, such as `100 dollars`. Each page of a PDF is now read once, so the ledger no longer
   records duplicate entries for pages after the first. See the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
+- **`managed_healthcare_phi` uses `zipCodeFilterStrategies`:** the managed policy no longer uses the
+  deprecated `zipCodeFilterStrategy` key ([#206](https://github.com/philterd/philter/issues/206)).
+  Policies copied from it before this release still work, but should rename the key before the alias
+  is removed.
 
 ## [4.0.2] - 2026-11-17
 

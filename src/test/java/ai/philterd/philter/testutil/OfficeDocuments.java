@@ -47,6 +47,29 @@ public final class OfficeDocuments {
         return zip(entries);
     }
 
+    /**
+     * A Word document with a paragraph of {@code text}, then a paragraph inserted as a tracked change by
+     * {@code author}, who is also the document's creator in {@code docProps/core.xml}.
+     */
+    public static byte[] docxByAuthor(final String text, final String author) {
+        final Map<String, String> entries = new LinkedHashMap<>();
+        entries.put("[Content_Types].xml", contentTypes(
+                override("/word/document.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml")
+                        + override("/docProps/core.xml", "application/vnd.openxmlformats-package.core-properties+xml")));
+        entries.put("_rels/.rels", rels(rel("rId1", REL + "/officeDocument", "word/document.xml")
+                + rel("rId2", PKG_REL + "/metadata/core-properties", "docProps/core.xml")));
+        entries.put("word/document.xml", "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+                + "<w:body><w:p><w:r><w:t xml:space=\"preserve\">" + escape(text) + "</w:t></w:r></w:p>"
+                + "<w:p><w:ins w:id=\"1\" w:author=\"" + escape(author) + "\" w:date=\"2026-01-01T00:00:00Z\">"
+                + "<w:r><w:t>Reviewed.</w:t></w:r></w:ins></w:p></w:body></w:document>");
+        entries.put("docProps/core.xml", "<cp:coreProperties"
+                + " xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\""
+                + " xmlns:dc=\"http://purl.org/dc/elements/1.1/\">"
+                + "<dc:creator>" + escape(author) + "</dc:creator><cp:lastModifiedBy>" + escape(author)
+                + "</cp:lastModifiedBy></cp:coreProperties>");
+        return zip(entries);
+    }
+
     /** An Excel workbook with one sheet whose cell A1 holds {@code text} as a shared string. */
     public static byte[] xlsx(final String text) {
         final String s = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";

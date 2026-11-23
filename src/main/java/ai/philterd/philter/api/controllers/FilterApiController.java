@@ -470,7 +470,7 @@ public class FilterApiController extends AbstractApiController {
         // Pin the policy version in force when the request is accepted, so the deferred redaction is
         // governed by the version the caller submitted against rather than whatever is current when the
         // worker later runs. We retain a snapshot of that content so the worker can redact with it.
-        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
+        final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
 
         // As the synchronous path does, rather than failing later in the worker.
         if (policyEntity == null) {
@@ -486,7 +486,7 @@ public class FilterApiController extends AbstractApiController {
         final List<PagePolicyCapture> pageCaptures = new ArrayList<>();
         final List<AppliedPagePolicy> appliedPages = new ArrayList<>();
         for (final PagePolicyRequest pagePolicy : pagePolicies) {
-            final PolicyEntity pageEntity = policyDataService.findOne(pagePolicy.policyName(), userId);
+            final PolicyEntity pageEntity = policyDataService.findOneOrManaged(pagePolicy.policyName(), userId);
             if (pageEntity == null) {
                 throw new PolicyNotFoundException("The policy '" + pagePolicy.policyName() + "' does not exist.");
             }
@@ -496,7 +496,7 @@ public class FilterApiController extends AbstractApiController {
                     new AppliedPolicy(pageEntity.getName(), pageEntity.getRevision(), pageHash)));
         }
 
-        final String effectiveJson = redactionService.captureEffectiveConfiguration(policyEntity, contextName, pageCaptures);
+        final String effectiveJson = redactionService.captureEffectiveConfiguration(userId, policyEntity, contextName, pageCaptures);
         entity.setEffectiveJson(effectiveJson);
         entity.setEffectiveHash(PolicyVersionDataService.contentHash(effectiveJson));
         pendingDocumentDataService.save(entity);

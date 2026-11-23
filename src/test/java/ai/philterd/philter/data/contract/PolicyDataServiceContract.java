@@ -48,6 +48,19 @@ public interface PolicyDataServiceContract extends StorageContract {
     }
 
     @Test
+    default void managedPoliciesKeepTheirRevisionWhenReloadedUnchanged() {
+        storage().policies().loadAndSaveManagedPolicies();
+        final PolicyEntity loaded = storage().policies().findOneOrManaged("managed_common_pii", RecordIds.newId());
+        assertNotNull(loaded, "a managed policy is found for any user");
+
+        storage().policies().loadAndSaveManagedPolicies();
+
+        assertEquals(loaded.getRevision(),
+                storage().policies().findOneOrManaged("managed_common_pii", RecordIds.newId()).getRevision(),
+                "a restart with the same resource file does not move the version redaction reports");
+    }
+
+    @Test
     default void policyRevisionIsReadWithoutThePolicy() {
         final String owner = RecordIds.newId();
         assertNull(storage().policies().findRevision("claims", owner), "no policy, no revision");

@@ -182,7 +182,7 @@ class FilterApiControllerTest {
         policyEntity.setName("default");
         policyEntity.setRevision(7);
         policyEntity.setPolicy("{\"identifiers\":{}}");
-        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("default", userId)).thenReturn(policyEntity);
         when(policyVersionDataService.snapshot(policyEntity)).thenReturn("hash7");
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -224,7 +224,7 @@ class FilterApiControllerTest {
         policyEntity.setName("default");
         policyEntity.setRevision(1);
         policyEntity.setPolicy("{\"identifiers\":{}}");
-        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("default", userId)).thenReturn(policyEntity);
 
         final String responseBody = mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
@@ -303,7 +303,7 @@ class FilterApiControllerTest {
         policyEntity.setName("default");
         policyEntity.setRevision(7);
         policyEntity.setPolicy("{\"identifiers\":{}}");
-        when(policyDataService.findOne("default", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("default", userId)).thenReturn(policyEntity);
         when(policyVersionDataService.snapshot(policyEntity)).thenReturn("hash7");
 
         mockMvc.perform(post("/api/filter?sign=false")
@@ -426,7 +426,7 @@ class FilterApiControllerTest {
     @Test
     @org.junit.jupiter.api.DisplayName("An async request naming an unknown policy is a 404")
     void asyncWithAnUnknownPolicyIsRefused() throws Exception {
-        when(policyDataService.findOne("default", userId)).thenReturn(null);
+        when(policyDataService.findOneOrManaged("default", userId)).thenReturn(null);
 
         mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
@@ -488,7 +488,7 @@ class FilterApiControllerTest {
     @org.junit.jupiter.params.provider.ValueSource(ints = {429, 503})
     void queueCapacityPreservesStatusAndRetryAfter(int statusCode) throws Exception {
         var policy = new PolicyEntity(); policy.setName("default"); policy.setPolicy("{}");
-        when(policyDataService.findOne("default", userId)).thenReturn(policy);
+        when(policyDataService.findOneOrManaged("default", userId)).thenReturn(policy);
         when(pendingDocumentDataService.save(any())).thenThrow(new ai.philterd.philter.data.services.QueueCapacityException("Queue full.", statusCode));
         mockMvc.perform(post("/api/filter").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF).accept(MediaType.APPLICATION_PDF).content(validPdf()))

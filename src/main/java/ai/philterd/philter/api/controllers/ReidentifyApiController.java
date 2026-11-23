@@ -299,7 +299,7 @@ public class ReidentifyApiController extends AbstractApiController {
      */
     private Crypto resolveCrypto(final String policyName, final String userId) {
 
-        final PolicyEntity policyEntity = policyDataService.findOne(policyName, userId);
+        final PolicyEntity policyEntity = policyDataService.findOneOrManaged(policyName, userId);
         if (policyEntity == null) {
             throw new PolicyNotFoundException("Policy '" + policyName + "' not found.");
         }
@@ -347,7 +347,7 @@ public class ReidentifyApiController extends AbstractApiController {
         // Account defaults apply only when the policy supplies no FPE object.
         FPE fpe = null;
         if (request.getPolicyName() != null && !request.getPolicyName().isBlank()) {
-            final PolicyEntity policyEntity = policyDataService.findOne(request.getPolicyName(), userId);
+            final PolicyEntity policyEntity = policyDataService.findOneOrManaged(request.getPolicyName(), userId);
             if (policyEntity == null) {
                 throw new PolicyNotFoundException("Policy '" + request.getPolicyName() + "' not found.");
             }

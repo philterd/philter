@@ -22,7 +22,7 @@ The types of sensitive information found and how each type is redacted is determ
 
 ### Query Parameters
 
-* `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
+* `p` - The name of the policy to use for filtering: one of yours, or a [managed policy](../../policies/sample_policies.md#managed-policies) such as `managed_common_pii`. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `async` - **PDF, Word, and Excel only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
@@ -165,7 +165,7 @@ The types of sensitive information found and how each type is redacted is determ
 
 ### Query Parameters
 
-* `p` - The name of the policy to use for filtering. Defaults to `default` if not provided.
+* `p` - The name of the policy to use for filtering: one of yours, or a [managed policy](../../policies/sample_policies.md#managed-policies) such as `managed_common_pii`. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
 * `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) in the `X-Philter-Signature` header when the deployment has not enabled signing. The signature covers the JSON response body.

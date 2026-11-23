@@ -33,7 +33,7 @@ To reverse chosen values, send a `POST` request to `/api/reidentify` with a JSON
 |---|---|---|
 | `values` | Yes | One or more replacement values to reverse. |
 | `strategy` | Yes | `CRYPTO_REPLACE` or `FPE_ENCRYPT_REPLACE`. |
-| `policyName` | Required for `CRYPTO_REPLACE`; optional for `FPE_ENCRYPT_REPLACE` | The policy whose cryptographic parameters were used during redaction. For `FPE_ENCRYPT_REPLACE`, omit this field to use your account's default key and derived tweak; supply it when the policy specified its own `fpe` configuration. |
+| `policyName` | Required for `CRYPTO_REPLACE`; optional for `FPE_ENCRYPT_REPLACE` | The policy whose cryptographic parameters were used during redaction. For `FPE_ENCRYPT_REPLACE`, omit this field to use your account's default key and derived tweak; supply it when the policy specified its own `fpe` configuration. A managed policy name is accepted, but the managed policies use neither strategy, so there is nothing to re-identify: `CRYPTO_REPLACE` is refused because the policy has no crypto key. |
 | `reason` | Yes | A free-text statement of why the reversal is authorized. Recorded verbatim in the audit log. |
 
 ### Example: `CRYPTO_REPLACE`

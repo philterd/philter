@@ -4,7 +4,7 @@ This page lists some sample policies. You can use these policies either as-is or
 
 ## Managed Policies
 
-Philter includes built-in managed policies that can be used as starting points:
+Philter includes built-in managed policies. Pass one's name as `p` to redact with it, or use it as a starting point:
 
 | Name | Description |
 |------|-------------|
@@ -13,6 +13,14 @@ Philter includes built-in managed policies that can be used as starting points:
 | `managed_financial_pii` | Financial PII including credit cards, bank routing numbers, IBANs, Bitcoin addresses, emails, phone numbers, and SSNs |
 
 The managed policies do not include the [ITIN](filters/common_filters/itin.md), [EIN](filters/common_filters/ein.md), or [Canadian SIN](filters/common_filters/canada-sin.md) filters, and the SSN filter they use detects neither ITINs nor EINs. **The managed policies do not redact values in the EIN form `NN-NNNNNNN`**, such as `12-3456789`. To redact ITINs, EINs, or Canadian SINs, copy a managed policy and add those filters to the copy.
+
+```
+curl -k -X POST "https://localhost:8080/api/filter?p=managed_common_pii" \
+  -H "Content-Type: text/plain" -H "Authorization: Bearer <token>" \
+  --data "Email jane.doe@example.com about SSN 123-45-6789."
+```
+
+A managed policy can also be named in a PDF's `page_policy`. The `X-Philter-Policy-Name` and `X-Philter-Policy-Version` response headers report the managed policy and the version that was applied. The version changes only when an upgrade changes the policy or its description.
 
 A managed policy can be read but not changed. To use one as the basis for your own, copy it and edit the copy:
 

@@ -32,6 +32,7 @@ import ai.philterd.philter.services.policies.PolicyValidation;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -631,7 +632,12 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
 
             final PolicyEntity existingPolicy = findManaged(managedPolicy.getName());
 
-            if (existingPolicy != null) {
+            if (existingPolicy != null && unchanged(existingPolicy, managedPolicy)) {
+
+                // Leave the revision alone, so the version a redaction reports changes only with the policy.
+                LOGGER.info("Managed policy unchanged: {}", managedPolicy.getName());
+
+            } else if (existingPolicy != null) {
 
                 // Update existing managed policy
                 final int expectedRevision = existingPolicy.getRevision();
@@ -661,6 +667,16 @@ public abstract class StoredPolicyDataService implements PolicyDataService {
 
         LOGGER.info("Managed policies loaded successfully.");
 
+    }
+
+    /** True when the stored managed policy has the resource file's JSON (compared as JSON) and description. */
+    private static boolean unchanged(final PolicyEntity stored, final PolicyEntity loaded) {
+        try {
+            return JsonParser.parseString(stored.getPolicy()).equals(JsonParser.parseString(loaded.getPolicy()))
+                    && Objects.equals(stored.getDescription(), loaded.getDescription());
+        } catch (final RuntimeException e) {
+            return false;
+        }
     }
 
 }

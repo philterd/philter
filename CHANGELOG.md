@@ -62,6 +62,16 @@ Uses Phileas 4.6.0.
 
 - **`models` in `GET /api/models`:** holds the same list as the new `localModels`. Use `localModels`.
 
+### Fixed
+
+- **Managed policies in `/api/filter`:** `p=managed_common_pii`, `managed_healthcare_phi`, or
+  `managed_financial_pii` redacts with the managed policy instead of returning `404`, for text,
+  queued PDF, Word, and Excel documents, `page_policy`, and `/api/explain`
+  ([#205](https://github.com/philterd/philter/issues/205)). Re-identify accepts a managed policy name too.
+- **Managed policy versions:** a managed policy's revision no longer increases at every start, so
+  `X-Philter-Policy-Version` and the ledger report a new version only when an upgrade changes the
+  policy or its description.
+
 ## [4.0.2] - 2026-11-17
 
 Dependency update. No behavior changes; still Java 25 and Phileas 4.5.0.

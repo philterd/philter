@@ -202,7 +202,7 @@ class Release400AuditTest extends AbstractMongoIT {
         org.mockito.Mockito.when(users.findOneById(userId)).thenReturn(new UserEntity());
         final var policy = new PolicyEntity();
         policy.setPolicy(new com.google.gson.Gson().toJson(java.util.Map.of("fpe", fpe)));
-        org.mockito.Mockito.when(policies.findOne("policy", userId)).thenReturn(policy);
+        org.mockito.Mockito.when(policies.findOneOrManaged("policy", userId)).thenReturn(policy);
         final var controller = new ai.philterd.philter.api.controllers.ReidentifyApiController(users, policies,
                 mock(ApiKeyDataService.class), audit, mock(ai.philterd.philter.services.cache.ApiKeyCache.class),
                 new com.google.gson.Gson());

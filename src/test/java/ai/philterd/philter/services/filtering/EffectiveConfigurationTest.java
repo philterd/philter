@@ -33,7 +33,7 @@ class EffectiveConfigurationTest {
         when(contexts.findOneByNameAndUserId("context", user.getId())).thenReturn(context);
         var policy = new PolicyEntity(); policy.setName("p"); policy.setUserId(user.getId());
         policy.setPolicy("{\"identifiers\":{\"dictionaries\":[{\"terms\":[\"list:names\"]}]}}");
-        final String captured = service.captureEffectiveConfiguration(policy, "context");
+        final String captured = service.captureEffectiveConfiguration(user.getId(), policy, "context");
         var config = new Gson().fromJson(captured, EffectiveConfiguration.class);
         var resolved = new Gson().fromJson(config.policyJson(), Policy.class);
         assertEquals("0123456789abcdef0123456789abcdef", resolved.getFpe().getKey());

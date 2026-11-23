@@ -231,7 +231,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"my-policy\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("my-policy", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("my-policy", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of(encrypted), "CRYPTO_REPLACE", "my-policy", "authorized review");
 
@@ -256,7 +256,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of(enc1, enc2), "CRYPTO_REPLACE", "p", "batch test");
 
@@ -281,7 +281,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of(goodEnc, badEnc), "CRYPTO_REPLACE", "p", "mixed test");
 
@@ -309,7 +309,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of("not-valid-ciphertext"), "CRYPTO_REPLACE", "p", "test");
 
@@ -326,7 +326,7 @@ class ReidentifyApiControllerTest {
 
     @Test
     void cryptoReplacePolicyNotFoundReturns404() throws Exception {
-        when(policyDataService.findOne("missing-policy", userId)).thenReturn(null);
+        when(policyDataService.findOneOrManaged("missing-policy", userId)).thenReturn(null);
 
         final ReidentifyRequest req = request(List.of("enc"), "CRYPTO_REPLACE", "missing-policy", "test");
 
@@ -343,7 +343,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of("enc"), "CRYPTO_REPLACE", "p", "test");
 
@@ -466,7 +466,7 @@ class ReidentifyApiControllerTest {
         final String encrypted = Encryption.formatPreservingEncrypt(resolvedFpe, plaintext);
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
         final UserEntity userEntity = new UserEntity();
         userEntity.setId(userId);
         when(userService.findOneById(userId)).thenReturn(userEntity);
@@ -496,7 +496,7 @@ class ReidentifyApiControllerTest {
     void fpeIncompletePolicyDoesNotFallBackToAccountDefaults() throws Exception {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy("{\"name\":\"p\",\"fpe\":{\"tweak\":\"1234567890abcdef\"}}");
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
         when(userService.findOneById(userId)).thenReturn(new UserEntity());
 
         final String body = mockMvc.perform(post("/api/reidentify")
@@ -514,7 +514,7 @@ class ReidentifyApiControllerTest {
 
     @Test
     void fpePolicyNotFoundReturns404() throws Exception {
-        when(policyDataService.findOne("missing", userId)).thenReturn(null);
+        when(policyDataService.findOneOrManaged("missing", userId)).thenReturn(null);
 
         final UserEntity userEntity = new UserEntity();
         userEntity.setId(userId);
@@ -560,7 +560,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of(encrypted), "CRYPTO_REPLACE", "p", "legal hold review");
 
@@ -595,7 +595,7 @@ class ReidentifyApiControllerTest {
         final String policyJson = "{\"name\":\"p\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}";
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy(policyJson);
-        when(policyDataService.findOne("p", otherUserId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", otherUserId)).thenReturn(policyEntity);
 
         final ReidentifyRequest req = request(List.of(encrypted), "CRYPTO_REPLACE", "p", "admin review");
 
@@ -610,8 +610,8 @@ class ReidentifyApiControllerTest {
 
         assertTrue(body.contains("Secret"));
         // Policy lookup must target the owner's userId, not the caller's.
-        verify(policyDataService).findOne("p", otherUserId);
-        verify(policyDataService, never()).findOne(any(), eq(userId));
+        verify(policyDataService).findOneOrManaged("p", otherUserId);
+        verify(policyDataService, never()).findOneOrManaged(any(), eq(userId));
     }
 
     @Test
@@ -633,7 +633,7 @@ class ReidentifyApiControllerTest {
                         .requestAttr("requestId", "req-forbidden"))
                 .andExpect(status().isNotFound());
 
-        verify(policyDataService, never()).findOne(any(), eq(otherUserId));
+        verify(policyDataService, never()).findOneOrManaged(any(), eq(otherUserId));
     }
 
     // ----- Text -----
@@ -721,7 +721,7 @@ class ReidentifyApiControllerTest {
 
     @Test
     void textWithUnknownPolicyReturns404() throws Exception {
-        when(policyDataService.findOne("missing", userId)).thenReturn(null);
+        when(policyDataService.findOneOrManaged("missing", userId)).thenReturn(null);
 
         mockMvc.perform(post("/api/reidentify/text")
                         .header("Authorization", AUTH_HEADER)
@@ -735,7 +735,7 @@ class ReidentifyApiControllerTest {
     void textWithPolicyWithoutCryptoKeyReturns400() throws Exception {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy("{\"name\":\"p\",\"identifiers\":{}}");
-        when(policyDataService.findOne("p", userId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged("p", userId)).thenReturn(policyEntity);
 
         mockMvc.perform(post("/api/reidentify/text")
                         .header("Authorization", AUTH_HEADER)
@@ -766,7 +766,7 @@ class ReidentifyApiControllerTest {
                 "other@example.com", "req-text-admin");
 
         assertEquals("Hi Secret", response.getText());
-        verify(policyDataService, never()).findOne(any(), eq(userId));
+        verify(policyDataService, never()).findOneOrManaged(any(), eq(userId));
         verify(auditEventPublisher).auditEvent(eq("req-text-admin"), eq(AuditLogEvent.REDACTION_REVERSED),
                 eq(userId), any(), any(), org.mockito.ArgumentMatchers.argThat(detail ->
                         detail.contains("owner: " + otherUserId)));
@@ -788,7 +788,7 @@ class ReidentifyApiControllerTest {
                         .requestAttr("requestId", "req-text-forbidden"))
                 .andExpect(status().isNotFound());
 
-        verify(policyDataService, never()).findOne(any(), any());
+        verify(policyDataService, never()).findOneOrManaged(any(), any());
     }
 
     // ----- Helpers -----
@@ -796,7 +796,7 @@ class ReidentifyApiControllerTest {
     private void storeCryptoPolicy(final String name, final String ownerId) {
         final PolicyEntity policyEntity = new PolicyEntity();
         policyEntity.setPolicy("{\"name\":\"" + name + "\",\"crypto\":{\"key\":\"" + CRYPTO_HEX_KEY + "\"},\"identifiers\":{}}");
-        when(policyDataService.findOne(name, ownerId)).thenReturn(policyEntity);
+        when(policyDataService.findOneOrManaged(name, ownerId)).thenReturn(policyEntity);
     }
 
     /** A CRYPTO_REPLACE replacement as Phileas writes it. */

@@ -543,6 +543,14 @@ public class RedactionService {
     // database. The revision is checked without reading the policy, so an edit made on any instance governs the next
     // request. The JSON can contain PII in filter-strategy conditions, which is why the cache is in-process only.
     private RedactionCache.CachedPolicy storedPolicy(final String policyName, final String userId) throws PolicyNotFoundException {
+        // A managed policy has no owner, so it is not in the user's cache or found by the user's revision.
+        if (PolicyDataService.isManagedName(policyName)) {
+            final PolicyEntity managed = policyDataService.findOneOrManaged(policyName, userId);
+            if (managed == null) {
+                throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
+            }
+            return new RedactionCache.CachedPolicy(managed.getPolicy(), managed.getRevision());
+        }
         final Integer storedRevision = policyDataService.findRevision(policyName, userId);
         if (storedRevision == null) {
             throw new PolicyNotFoundException("The policy '" + policyName + "' does not exist.");
@@ -701,17 +709,21 @@ public class RedactionService {
         return phileasPolicy;
     }
 
-    public String captureEffectiveConfiguration(final PolicyEntity policy, final String contextName) {
-        return captureEffectiveConfiguration(policy, contextName, List.of());
+    public String captureEffectiveConfiguration(final String userId, final PolicyEntity policy, final String contextName) {
+        return captureEffectiveConfiguration(userId, policy, contextName, List.of());
     }
 
     /** A page set's stored policy and the content hash of its retained snapshot, for a queued PDF. */
     public record PagePolicyCapture(String pages, PolicyEntity policy, String contentHash) {
     }
 
-    public String captureEffectiveConfiguration(final PolicyEntity policy, final String contextName,
+    /**
+     * The policy, its lists, and the context, resolved for the user the document is redacted for. That is the
+     * user, not the policy's owner, since a managed policy has none.
+     */
+    public String captureEffectiveConfiguration(final String userId, final PolicyEntity policy, final String contextName,
                                                 final List<PagePolicyCapture> pagePolicies) {
-        final UserEntity user = userService.findOneById(policy.getUserId());
+        final UserEntity user = userService.findOneById(userId);
         if (user == null) throw new IllegalStateException("Account no longer exists.");
         final Policy resolved = resolveEffectivePolicy(policy.getPolicy(), user);
         // Refused when the document is submitted, not left to fail in the worker after it was accepted.

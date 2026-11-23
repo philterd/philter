@@ -25,10 +25,12 @@ public class ModelResponse {
     private final String encoder;
     private final Integer maxLength;
     private final Integer maxWidth;
+    private final String sha256;
     private final long sizeBytes;
 
-    public ModelResponse(final PhEyeModels.PhEyeModel model) {
+    public ModelResponse(final PhEyeModels.PhEyeModel model, final String sha256) {
         this.name = model.name();
+        this.sha256 = sha256;
         this.encoder = model.encoder();
         this.maxLength = model.maxLength();
         this.maxWidth = model.maxWidth();
@@ -49,6 +51,10 @@ public class ModelResponse {
     @Schema(description = "The most words one detected entity can span. Absent when the configuration does not say.",
             nullable = true)
     public Integer getMaxWidth() { return maxWidth; }
+
+    @Schema(description = "The SHA-256 of its model.onnx, as lowercase hex. It identifies the weights: two models "
+            + "with the same name and different weights have different values.")
+    public String getSha256() { return sha256; }
 
     @Schema(description = "The combined size, in bytes, of its gliner_config.json, tokenizer.json, and model.onnx.")
     public long getSizeBytes() { return sizeBytes; }

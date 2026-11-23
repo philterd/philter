@@ -39,6 +39,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.UncheckedIOException;
+import java.util.Optional;
+
 /** Lists the local PhEye models in PHEYE_MODELS_DIRECTORY, which a policy names in a ph-eye filter's modelPath. */
 @Tag(name = "Models", description = "The local PhEye models a policy can name.")
 @Controller
@@ -55,7 +58,9 @@ public class ModelsApiController extends AbstractApiController {
             description = "Returns the models in the deployment's models directory (PHEYE_MODELS_DIRECTORY), ordered "
                     + "by name. A ph-eye filter uses one by giving its name as phEyeConfiguration.modelPath; the model "
                     + "then runs inside Philter. The directory is read on each request, so a model an administrator "
-                    + "adds is listed without a restart. The models are the deployment's, the same for every user.")
+                    + "adds is listed without a restart. The models are the deployment's, the same for every user. Each "
+                    + "model's SHA-256 is computed once and cached, so the first request after a model is added or "
+                    + "replaced can take a few seconds.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Every model, which may be none.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -69,7 +74,8 @@ public class ModelsApiController extends AbstractApiController {
 
         requireApiKey(authorizationHeader);
 
-        return ResponseEntity.ok(new GetModelsResponse(models.list().stream().map(ModelResponse::new).toList()));
+        return ResponseEntity.ok(new GetModelsResponse(models.list().stream().map(this::response)
+                .flatMap(Optional::stream).toList()));
 
     }
 
@@ -91,8 +97,17 @@ public class ModelsApiController extends AbstractApiController {
 
         requireApiKey(authorizationHeader);
 
-        return ResponseEntity.ok(new ModelResponse(models.find(modelName).orElseThrow(NotFoundException::new)));
+        return ResponseEntity.ok(models.find(modelName).flatMap(this::response).orElseThrow(NotFoundException::new));
 
+    }
+
+    /** Empty when the model's files were removed or became unreadable after it was listed. */
+    private Optional<ModelResponse> response(final PhEyeModels.PhEyeModel model) {
+        try {
+            return Optional.of(new ModelResponse(model, models.sha256(model)));
+        } catch (final UncheckedIOException e) {
+            return Optional.empty();
+        }
     }
 
 }

@@ -26,11 +26,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -55,6 +65,15 @@ public final class PhEyeModels {
 
     private final Path directory;
 
+    /** Each model.onnx's SHA-256, kept while the file's size, modification time, and file key are unchanged. */
+    private final Map<Path, Digest> digests = new ConcurrentHashMap<>();
+
+    /** One lock per model.onnx, so a request and the startup warm-up do not both hash the same file. */
+    private final Map<Path, Object> digestLocks = new ConcurrentHashMap<>();
+
+    private record Digest(long size, long modified, Object fileKey, String sha256) {
+    }
+
     public PhEyeModels(final Path directory) {
         this.directory = directory;
     }
@@ -74,8 +93,49 @@ public final class PhEyeModels {
     }
 
     /** A model a policy can name. */
-    public record PhEyeModel(String name, Path path, String encoder, Integer maxLength, Integer maxWidth,
+    public record PhEyeModel(String name, Path path, Path onnx, String encoder, Integer maxLength, Integer maxWidth,
                              long sizeBytes) {
+    }
+
+    /**
+     * The SHA-256 of the model's model.onnx, as lowercase hex. It is computed once and recomputed only when the
+     * file's size, modification time, or file key changes, so replacing the file is noticed.
+     * @throws UncheckedIOException When the file cannot be read.
+     */
+    public String sha256(final PhEyeModel model) {
+        synchronized (digestLocks.computeIfAbsent(model.onnx(), path -> new Object())) {
+            return sha256Locked(model);
+        }
+    }
+
+    private String sha256Locked(final PhEyeModel model) {
+        try {
+            final BasicFileAttributes attributes = Files.readAttributes(model.onnx(), BasicFileAttributes.class);
+            final long modified = attributes.lastModifiedTime().toMillis();
+            final Digest cached = digests.get(model.onnx());
+            if (cached != null && cached.size() == attributes.size() && cached.modified() == modified
+                    && Objects.equals(cached.fileKey(), attributes.fileKey())) {
+                return cached.sha256();
+            }
+            final String sha256 = digest(model.onnx());
+            digests.put(model.onnx(), new Digest(attributes.size(), modified, attributes.fileKey(), sha256));
+            return sha256;
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String digest(final Path file) throws IOException {
+        final MessageDigest sha256;
+        try {
+            sha256 = MessageDigest.getInstance("SHA-256");
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        try (InputStream in = new DigestInputStream(Files.newInputStream(file), sha256)) {
+            in.transferTo(java.io.OutputStream.nullOutputStream());
+        }
+        return HexFormat.of().formatHex(sha256.digest());
     }
 
     /** The complete models in the directory, by name. Empty when the directory does not exist. */
@@ -175,8 +235,9 @@ public final class PhEyeModels {
             if (json.get("encoder_config") instanceof JsonObject encoderConfig) {
                 encoder = string(encoderConfig.get("_name_or_path"));
             }
-            return Optional.of(new PhEyeModel(name, dir.toRealPath(), encoder, integer(json.get("max_len")),
-                    integer(json.get("max_width")), Files.size(config) + Files.size(tokenizer) + Files.size(onnx)));
+            return Optional.of(new PhEyeModel(name, dir.toRealPath(), onnx.toRealPath(), encoder,
+                    integer(json.get("max_len")), integer(json.get("max_width")),
+                    Files.size(config) + Files.size(tokenizer) + Files.size(onnx)));
         } catch (final Exception e) {
             LOGGER.warn("Skipping the model in {}: its gliner_config.json could not be read: {}", dir, e.toString());
             return Optional.empty();

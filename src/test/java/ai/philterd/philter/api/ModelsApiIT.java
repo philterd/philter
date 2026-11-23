@@ -58,6 +58,9 @@ class ModelsApiIT {
     static class Config extends InMemoryTestConfiguration {
     }
 
+    /** The SHA-256 of src/test/resources/models/test-fixture/model.onnx. */
+    private static final String FIXTURE_SHA256 = "4b8b1b4534b083adb7f25ef740eba60a6b406d08f883d2ba098e56a19a416dd7";
+
     private static final String REDACT = "[{\"strategy\":\"REDACT\",\"redactionFormat\":\"{{{REDACTED-%t}}}\"}]";
 
     @Autowired private Environment environment;
@@ -107,8 +110,10 @@ class ModelsApiIT {
         final HttpResponse<String> response = get("/api/models", apiKey);
 
         assertEquals(200, response.statusCode(), response.body());
-        final JsonArray models = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonArray("models");
+        final JsonObject body = JsonParser.parseString(response.body()).getAsJsonObject();
+        final JsonArray models = body.getAsJsonArray("localModels");
         assertEquals(2, models.size(), response.body());
+        assertEquals(models, body.getAsJsonArray("models"), "the deprecated models field holds the same list");
         assertEquals("ph-eye-pii-en-small", models.get(0).getAsJsonObject().get("name").getAsString(), "ordered by name");
         final JsonObject model = models.get(1).getAsJsonObject();
         assertEquals("test-fixture", model.get("name").getAsString());
@@ -116,6 +121,7 @@ class ModelsApiIT {
         assertEquals(384, model.get("maxLength").getAsInt());
         assertEquals(12, model.get("maxWidth").getAsInt());
         assertTrue(model.get("sizeBytes").getAsLong() > 0);
+        assertEquals(FIXTURE_SHA256, model.get("sha256").getAsString());
         assertFalse(response.body().contains("src/test/resources"), "a model's location is not disclosed");
     }
 
@@ -124,7 +130,9 @@ class ModelsApiIT {
     void getsOneModel() throws Exception {
         final HttpResponse<String> found = get("/api/models/test-fixture", apiKey);
         assertEquals(200, found.statusCode(), found.body());
-        assertEquals("test-fixture", JsonParser.parseString(found.body()).getAsJsonObject().get("name").getAsString());
+        final JsonObject model = JsonParser.parseString(found.body()).getAsJsonObject();
+        assertEquals("test-fixture", model.get("name").getAsString());
+        assertEquals(FIXTURE_SHA256, model.get("sha256").getAsString());
 
         assertEquals(404, get("/api/models/absent", apiKey).statusCode());
         // Philter refuses a path with a dot segment before it reaches a controller.

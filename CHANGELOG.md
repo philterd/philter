@@ -29,6 +29,10 @@ Uses Phileas 4.6.0.
 - **The caller's username in `GET /api/limits`:** `caller.username` names the user the API key or
   session key belongs to, the value an administrator passes as `owner` to reach that user's resources
   ([#207](https://github.com/philterd/philter/issues/207)).
+- **Local model identity:** `GET /api/models` and `GET /api/models/{modelName}` report each model's
+  `sha256`, the SHA-256 of its `model.onnx`, so evaluation results can record which weights produced
+  them ([#100](https://github.com/philterd/philter/issues/100)). `GET /api/models` returns the list as
+  `localModels`.
 - **`SAFE_HARBOR` zip code strategy:** documented for the zip code filter
   ([#209](https://github.com/philterd/philter/issues/209)). See the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
@@ -53,6 +57,10 @@ Uses Phileas 4.6.0.
   deprecated `zipCodeFilterStrategy` key ([#206](https://github.com/philterd/philter/issues/206)).
   Policies copied from it before this release still work, but should rename the key before the alias
   is removed.
+
+### Deprecated
+
+- **`models` in `GET /api/models`:** holds the same list as the new `localModels`. Use `localModels`.
 
 ## [4.0.2] - 2026-11-17
 

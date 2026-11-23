@@ -89,6 +89,27 @@ class PhEyeModelsTest {
     }
 
     @Test
+    void theSha256IsOfModelOnnxAndFollowsItsReplacement(@TempDir final Path directory) throws Exception {
+        final Path onnx = model(directory, "nested", true).resolve("onnx").resolve("model.onnx");
+        final PhEyeModels models = new PhEyeModels(directory);
+
+        // The SHA-256 of 100 zero bytes.
+        final String zeros = "cd00e292c5970d3c5e2f0ffa5171e555bc46bfc4faddfb4a418b6840b86e79a3";
+        assertEquals(zeros, models.sha256(models.find("nested").orElseThrow()));
+        assertEquals(zeros, models.sha256(models.find("nested").orElseThrow()), "cached");
+
+        // A replacement of the same size, moved into place as an upload or a deployment would.
+        final byte[] ones = new byte[100];
+        java.util.Arrays.fill(ones, (byte) 1);
+        final Path replacement = Files.write(directory.resolve("replacement.onnx"), ones);
+        Files.move(replacement, onnx, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+        final String replaced = models.sha256(models.find("nested").orElseThrow());
+        assertEquals(java.util.HexFormat.of().formatHex(
+                java.security.MessageDigest.getInstance("SHA-256").digest(ones)), replaced);
+    }
+
+    @Test
     void anUnreadableConfigurationIsNotAModel(@TempDir final Path directory) throws Exception {
         Files.writeString(model(directory, "broken", false).resolve("gliner_config.json"), "not json");
         assertTrue(new PhEyeModels(directory).list().isEmpty());

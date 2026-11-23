@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -39,8 +40,17 @@ public class PhEyeOnnxConfig {
     public PhEyeOnnxConfig() {
         validate(System::getenv, System::getProperty);
         final PhEyeModels models = PhEyeModels.shared();
+        final List<PhEyeModels.PhEyeModel> local = models.list();
         LOGGER.info("Local PhEye models in {}: {}", models.getDirectory(),
-                models.list().stream().map(PhEyeModels.PhEyeModel::name).toList());
+                local.stream().map(PhEyeModels.PhEyeModel::name).toList());
+        // Hash the models in the background so the first GET /api/models does not wait for it.
+        Thread.ofVirtual().name("pheye-model-sha256").start(() -> local.forEach(model -> {
+            try {
+                models.sha256(model);
+            } catch (final RuntimeException e) {
+                LOGGER.warn("Could not compute the SHA-256 of the model {}: {}", model.name(), e.toString());
+            }
+        }));
     }
 
     static void validate(final Function<String, String> environment, final Function<String, String> properties) {

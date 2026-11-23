@@ -8143,7 +8143,7 @@
           "Models"
         ],
         "summary": "List the local PhEye models.",
-        "description": "Returns the models in the deployment's models directory (PHEYE_MODELS_DIRECTORY), ordered by name. A ph-eye filter uses one by giving its name as phEyeConfiguration.modelPath; the model then runs inside Philter. The directory is read on each request, so a model an administrator adds is listed without a restart. The models are the deployment's, the same for every user. Requires the `policies:read` scope.",
+        "description": "Returns the models in the deployment's models directory (PHEYE_MODELS_DIRECTORY), ordered by name. A ph-eye filter uses one by giving its name as phEyeConfiguration.modelPath; the model then runs inside Philter. The directory is read on each request, so a model an administrator adds is listed without a restart. The models are the deployment's, the same for every user. Each model's SHA-256 is computed once and cached, so the first request after a model is added or replaced can take a few seconds. Requires the `policies:read` scope.",
         "operationId": "getModels",
         "parameters": [
           {
@@ -19460,8 +19460,16 @@
       "GetModelsResponse": {
         "type": "object",
         "properties": {
+          "localModels": {
+            "description": "Every local model, ordered by name. Empty when the deployment has none.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelResponse"
+            }
+          },
           "models": {
-            "description": "Every model, ordered by name. Empty when the deployment has none.",
+            "description": "The same list as localModels. Deprecated: use localModels.",
+            "deprecated": true,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ModelResponse"
@@ -19938,6 +19946,10 @@
               "null"
             ],
             "format": "int32"
+          },
+          "sha256": {
+            "description": "The SHA-256 of its model.onnx, as lowercase hex. It identifies the weights: two models with the same name and different weights have different values.",
+            "type": "string"
           },
           "sizeBytes": {
             "description": "The combined size, in bytes, of its gliner_config.json, tokenizer.json, and model.onnx.",

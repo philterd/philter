@@ -22,13 +22,18 @@ import java.util.List;
 /** The local PhEye models a policy can name. */
 public class GetModelsResponse {
 
-    private final List<ModelResponse> models;
+    private final List<ModelResponse> localModels;
 
-    public GetModelsResponse(final List<ModelResponse> models) {
-        this.models = models;
+    public GetModelsResponse(final List<ModelResponse> localModels) {
+        this.localModels = localModels;
     }
 
-    @Schema(description = "Every model, ordered by name. Empty when the deployment has none.")
-    public List<ModelResponse> getModels() { return models; }
+    @Schema(description = "Every local model, ordered by name. Empty when the deployment has none.")
+    public List<ModelResponse> getLocalModels() { return localModels; }
+
+    /** @deprecated Use {@link #getLocalModels()}. */
+    @Deprecated
+    @Schema(description = "The same list as localModels. Deprecated: use localModels.", deprecated = true)
+    public List<ModelResponse> getModels() { return localModels; }
 
 }

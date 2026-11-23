@@ -16,27 +16,36 @@ Example request:
 curl -k -H "Authorization: Bearer <token>" https://localhost:8080/api/models
 ```
 
-Example response:
+Example response (the `models` list is left out):
 
 ```json
 {
-  "models": [
+  "localModels": [
     {
       "encoder": "microsoft/deberta-v3-xsmall",
       "maxLength": 512,
       "maxWidth": 12,
       "name": "pii-en-xsmall",
+      "sha256": "9f2c4d1e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e",
       "sizeBytes": 98724945
     }
   ]
 }
 ```
 
+* `localModels` - The local models.
+* `models` - The same list as `localModels`. Deprecated: use `localModels`.
+
+Each model has these fields:
+
 * `name` - The name a policy gives as `modelPath`.
 * `encoder` - The encoder the model was trained from, from its `gliner_config.json`. Absent when the configuration does not say.
 * `maxLength` - The most words of a text the model reads; later words are not examined. Absent when the configuration does not say.
 * `maxWidth` - The most words one detected entity can span. Absent when the configuration does not say.
+* `sha256` - The SHA-256 of its `model.onnx`, as lowercase hex. It identifies the weights, which the name does not: a model directory replaced with different weights keeps its name and gets a new `sha256`. Record it with evaluation results to show which model produced them.
 * `sizeBytes` - The combined size of its `gliner_config.json`, `tokenizer.json`, and `model.onnx`.
+
+Philter computes each model's `sha256` once and caches it, recomputing it when `model.onnx` changes. It hashes the models present at startup in the background, so the first request after startup, or after a model is added or replaced, can take a few seconds for a large model.
 
 Models are ordered by name. A subdirectory missing one of the files, or whose `gliner_config.json` cannot be read, is not listed.
 

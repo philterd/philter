@@ -2,7 +2,7 @@
 
 When Philter completes or fails an asynchronous PDF redaction, it can notify your application with a signed HTTP POST. Configure a single webhook URL and shared secret per user, with the `/api/webhook` endpoints below.
 
-> Webhooks only fire from the [asynchronous filter path](filtering_api.md#pdf-documents). Synchronous redactions return the result on the request itself and never produce a webhook.
+> Webhooks only fire from the [asynchronous filter path](filtering_api.md#pdf-word-and-excel-documents). Synchronous redactions return the result on the request itself and never produce a webhook.
 
 ## Configuration
 

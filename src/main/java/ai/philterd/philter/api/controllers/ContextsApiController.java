@@ -643,7 +643,8 @@ public class ContextsApiController extends AbstractApiController {
     @Operation(summary = "Export a context's mapping table.",
             description = "Returns the complete token-to-replacement mapping table for a context in a portable JSON form "
                     + "that can be re-imported into another context or environment. Only token hashes (never the original "
-                    + "tokens) and their replacements are returned.")
+                    + "tokens) and their replacements are returned, with the context's values, such as its random date "
+                    + "shift, which together with one known original date reveals every shifted date in the context.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "404", description = "Context not found.")
@@ -693,7 +694,7 @@ public class ContextsApiController extends AbstractApiController {
         final HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "-context-export.json\"");
 
-        return new ResponseEntity<>(gson.toJson(new ContextEntriesExport(name, exported)), headers, HttpStatus.OK);
+        return new ResponseEntity<>(gson.toJson(new ContextEntriesExport(name, exported, context.getValues())), headers, HttpStatus.OK);
 
     }
 
@@ -701,7 +702,8 @@ public class ContextsApiController extends AbstractApiController {
             description = "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. "
                     + "By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite "
                     + "to replace existing replacements instead. Token hashes are keyed per username, so mappings match "
-                    + "only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY.")
+                    + "only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY. "
+                    + "The context's values, such as its random date shift, follow on_conflict as entries do.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200"),
             @ApiResponse(responseCode = "400", description = "The payload or on_conflict value is invalid."),
@@ -769,6 +771,14 @@ public class ContextsApiController extends AbstractApiController {
             }
         }
 
+        final Map<String, String> values = payload.getValues() == null ? Map.of() : payload.getValues();
+        for (final Map.Entry<String, String> value : values.entrySet()) {
+            final String refusal = ContextDataService.refusalOfImportedValue(value.getKey(), value.getValue());
+            if (refusal != null) {
+                return new ResponseEntity<>(new GenericResponse(refusal), HttpStatus.BAD_REQUEST);
+            }
+        }
+
         final String ownerUserId = context.getUserId();
 
         int inserted = 0, overwritten = 0, skipped = 0;
@@ -783,9 +793,29 @@ public class ContextsApiController extends AbstractApiController {
             }
         }
 
+        // A context value, such as the random date shift, follows on_conflict as an entry does. A changed date
+        // shift moves later dates differently from earlier ones, so each change is named in the audit event.
+        final List<String> changedValues = new ArrayList<>();
+        for (final Map.Entry<String, String> value : values.entrySet()) {
+            final String before = context.getValues().get(value.getKey());
+            final boolean changed;
+            if (overwrite) {
+                changed = contextService.putValue(ownerUserId, name, value.getKey(), value.getValue())
+                        && !value.getValue().equals(before);
+            } else {
+                // What was stored decides: a redaction may have drawn a shift since the context was read.
+                final String stored = contextService.putValueIfAbsent(ownerUserId, name, value.getKey(), value.getValue());
+                changed = before == null && value.getValue().equals(stored);
+            }
+            if (changed) {
+                changedValues.add(value.getKey());
+            }
+        }
+
         auditEventPublisher.auditEvent(requestId, AuditLogEvent.CONTEXT_ENTRIES_IMPORTED, userId, null,
                 getClientIpAddress(httpServletRequest),
-                "context: " + AuditDetails.quote(name) + ", owner: " + ownerUserId + ", inserted: " + inserted + ", overwritten: " + overwritten + ", skipped: " + skipped);
+                "context: " + AuditDetails.quote(name) + ", owner: " + ownerUserId + ", inserted: " + inserted + ", overwritten: " + overwritten + ", skipped: " + skipped
+                        + (changedValues.isEmpty() ? "" : ", values changed: " + String.join(" ", changedValues)));
 
         return new ResponseEntity<>(
                 new ImportContextEntriesResponse(payload.getEntries().size(), inserted, overwritten, skipped),

@@ -99,7 +99,8 @@ class MongoImportIT extends AbstractMongoIT {
                         case "INTEGER" -> 1L;
                         case "REAL" -> 1.5;
                         case "BLOB" -> new byte[]{1};
-                        default -> "0123456789abcdef01234567";
+                        // A context's values are a JSON object.
+                        default -> "context_values".equals(column) ? "{\"%00date-shift\":\"-400\"}" : "0123456789abcdef01234567";
                     }));
                     assertNotNull(MongoImport.documentFor(table, row), "no converter for " + table);
                     read = row.read;

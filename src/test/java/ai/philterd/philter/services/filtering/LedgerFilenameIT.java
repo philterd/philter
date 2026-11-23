@@ -113,7 +113,7 @@ class LedgerFilenameIT extends AbstractMongoIT {
         ledgerDataService = new MongoLedgerDataService(mongoClient, new TestEncryptionService(),
                 mock(AuditEventPublisher.class), legalHoldDataService, signer);
 
-        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
+        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null), org.mockito.Mockito.mock(ai.philterd.philter.data.services.ContextDataService.class)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
                 completionAudit, ledgerDataService, userService,
                 new SimpleMeterRegistry(), phield,

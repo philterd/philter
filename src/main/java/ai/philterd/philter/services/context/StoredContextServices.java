@@ -16,21 +16,26 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.StoredContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 
-/** Context services over the stored context entries, the same for every storage implementation. */
+/** Context services over the stored contexts and their entries, the same for every storage implementation. */
 public class StoredContextServices implements ContextServices {
 
     private final StoredContextEntryDataService contextEntryService;
+    private final ContextDataService contextDataService;
 
-    public StoredContextServices(final StoredContextEntryDataService contextEntryService) {
+    public StoredContextServices(final StoredContextEntryDataService contextEntryService,
+                                 final ContextDataService contextDataService) {
         this.contextEntryService = contextEntryService;
+        this.contextDataService = contextDataService;
     }
 
     @Override
     public ContextService forContext(final ContextCache contextCache, final String userId, final String contextName) {
-        return new StoredContextService(contextCache, contextEntryService.withCache(contextCache), userId, contextName);
+        return new StoredContextService(contextCache, contextEntryService.withCache(contextCache), contextDataService,
+                userId, contextName);
     }
 
 }

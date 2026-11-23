@@ -105,9 +105,10 @@ class RedactionCacheFreshnessIT extends AbstractMongoIT {
         otherInstancePolicies = policies(new OtherInstanceCache());
         otherInstanceLists = lists(new OtherInstanceCache());
 
-        redactionService = new RedactionService(new StoredContextServices(new MongoContextEntryDataService(mongoClient, null)),
+        final ContextDataService contexts = mock(ContextDataService.class);
+        redactionService = new RedactionService(new StoredContextServices(new MongoContextEntryDataService(mongoClient, null), contexts),
                 new MongoVectorServices(mongoClient), policies, mock(CustomListDataService.class), lists,
-                mock(ContextDataService.class), mock(AuditEventPublisher.class), mock(LedgerDataService.class), userService,
+                contexts, mock(AuditEventPublisher.class), mock(LedgerDataService.class), userService,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class), mock(PiiCountAggregatePublisher.class), cache);
 
         assertTrue(policies.create("req", userId, REDACT_SSNS, null, null, POLICY_NAME, Source.API.getSource()).isSuccessful());

@@ -18,6 +18,9 @@ package ai.philterd.philter.data.mongodb;
 import ai.philterd.philter.data.entities.ContextEntity;
 import org.bson.Document;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /** Maps {@link ContextEntity} to and from the documents MongoDB stores. */
 public final class ContextDocuments {
 
@@ -37,6 +40,12 @@ public final class ContextDocuments {
         contextEntity.setSlot(document.getInteger("slot"));
         contextEntity.setTtlInHours(document.getInteger("ttl_in_hours", ContextEntity.DEFAULT_TTL_IN_HOURS));
         contextEntity.setTimestamp(document.getDate("timestamp"));
+        final Document values = document.get("context_values", Document.class);
+        final Map<String, String> read = new LinkedHashMap<>();
+        if (values != null) {
+            values.forEach((key, value) -> read.put(key, (String) value));
+        }
+        contextEntity.setValues(read);
         return contextEntity;
     }
 
@@ -54,6 +63,9 @@ public final class ContextDocuments {
         document.put("slot", entity.getSlot());
         document.put("ttl_in_hours", entity.getTtlInHours());
         document.put("timestamp", entity.getTimestamp());
+        if (!entity.getValues().isEmpty()) {
+            document.put("context_values", new Document(entity.getValues()));
+        }
         return document;
     }
 

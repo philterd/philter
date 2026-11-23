@@ -76,8 +76,9 @@ public class SqliteStorageConfiguration {
     }
 
     @Bean
-    public ContextServices contextServices(final SqliteContextEntryDataService contextEntryDataService) {
-        return new StoredContextServices(contextEntryDataService);
+    public ContextServices contextServices(final SqliteContextEntryDataService contextEntryDataService,
+                                           final ContextDataService contextDataService) {
+        return new StoredContextServices(contextEntryDataService, contextDataService);
     }
 
     @Bean

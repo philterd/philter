@@ -24,9 +24,17 @@ Uses Phileas 4.6.0.
   `<pages>:<policy>`, redacts a page set with its own policy, with `p` for the pages not assigned and
   one context for the whole document. The `X-Philter-Page-Policies` header and each ledger entry name
   the policy that applied, and a queued PDF pins every policy's version when it is accepted.
+- **Random date shift per context:** a context's random date shift (see the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md)) is kept
+  with the context, outside its entries, so it is never evicted, listed, or deleted with entries
+  ([#211](https://github.com/philterd/philter/issues/211)). Clearing a context's entries keeps it,
+  deleting the context removes it, and entry export and import carry it in `values`.
 
 ### Changed
 
+- **Database schema version 2:** the first start migrates the database, adding where contexts keep
+  their values. Back up first, and replace every 4.0.x instance together: Philter 4.0.x does not start
+  on a migrated database. See [Upgrading](docs/docs/upgrading.md#upgrading-within-4x).
 - **Detection and output for existing policies:** Phileas 4.6.0 changes what some filters detect and
   how overlapping spans are replaced. For example, the currency filter now detects amounts written with
   a currency name, such as `100 dollars`. Each page of a PDF is now read once, so the ledger no longer

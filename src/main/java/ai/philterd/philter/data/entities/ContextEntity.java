@@ -16,6 +16,8 @@
 package ai.philterd.philter.data.entities;
 
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ContextEntity extends AbstractEntity {
 
@@ -56,6 +58,9 @@ public class ContextEntity extends AbstractEntity {
     private int ttlInHours = DEFAULT_TTL_IN_HOURS;
     private Date timestamp;
     private String userId;
+    // Values that belong to the context rather than to a token, such as its random date shift, by key. Kept with
+    // the context, so they are never evicted, and are removed with it.
+    private Map<String, String> values = new LinkedHashMap<>();
 
     public Integer getSlot() {
         return slot;
@@ -135,6 +140,14 @@ public class ContextEntity extends AbstractEntity {
 
     public String getUserId() {
         return userId;
+    }
+
+    public Map<String, String> getValues() {
+        return values;
+    }
+
+    public void setValues(final Map<String, String> values) {
+        this.values = values == null ? new LinkedHashMap<>() : values;
     }
 
 }

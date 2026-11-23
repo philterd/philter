@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -106,6 +107,25 @@ class SqliteSchemaStoreTest {
         assertEquals(2, new SchemaMigrator(new SqliteSchemaStore(database, List.of(addColumn)), List.of(addColumn),
                 Duration.ofSeconds(5)).migrate());
         assertEquals(2, store.currentVersion());
+    }
+
+    @Test
+    void aVersionOneDatabaseGetsContextValuesAndKeepsItsContexts() {
+        final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of());
+        new SchemaMigrator(store, List.of(), Duration.ofSeconds(5)).migrate();
+        database.write(connection -> Sql.update(connection, "INSERT INTO contexts (id, user_id, context_name) VALUES (?, ?, ?)",
+                "c1", "u1", "claims"));
+
+        final List<Migration> migrations = SqliteMigrations.all(database);
+        assertEquals(2, new SchemaMigrator(new SqliteSchemaStore(database, migrations), migrations, Duration.ofSeconds(5)).migrate());
+
+        final SqliteContextDataService contexts = new SqliteContextDataService(database, null, null, null);
+        assertTrue(contexts.findOneByNameAndUserId("claims", "u1").getValues().isEmpty());
+        assertEquals("-400", contexts.putValueIfAbsent("u1", "claims", "%00date-shift", "-400"));
+
+        // Running it again, as after a stop before its version was recorded, changes nothing.
+        assertDoesNotThrow(() -> migrations.get(0).apply());
+        assertEquals("-400", contexts.findOneByNameAndUserId("claims", "u1").getValues().get("%00date-shift"));
     }
 
     @Test

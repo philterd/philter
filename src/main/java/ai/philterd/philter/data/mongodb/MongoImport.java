@@ -307,16 +307,23 @@ public final class MongoImport implements AutoCloseable {
                 .append("always_redact_revision", int64(row, "always_redact_revision"))
                 .append("never_redact_revision", int64(row, "never_redact_revision"))));
 
-        TARGETS.put("contexts", new Target("contexts", row -> new Document("_id", id(row, "id"))
-                .append("user_id", id(row, "user_id"))
-                .append("context_name", text(row, "context_name"))
-                .append("max_size", int32(row, "max_size"))
-                .append("disambiguation", bool(row, "disambiguation"))
-                .append("disambiguation_scope", text(row, "disambiguation_scope"))
-                .append("ledger", bool(row, "ledger"))
-                .append("slot", int32(row, "slot"))
-                .append("ttl_in_hours", int32(row, "ttl_in_hours"))
-                .append("timestamp", date(row, "timestamp"))));
+        TARGETS.put("contexts", new Target("contexts", row -> {
+            final Document context = new Document("_id", id(row, "id"))
+                    .append("user_id", id(row, "user_id"))
+                    .append("context_name", text(row, "context_name"))
+                    .append("max_size", int32(row, "max_size"))
+                    .append("disambiguation", bool(row, "disambiguation"))
+                    .append("disambiguation_scope", text(row, "disambiguation_scope"))
+                    .append("ledger", bool(row, "ledger"))
+                    .append("slot", int32(row, "slot"))
+                    .append("ttl_in_hours", int32(row, "ttl_in_hours"))
+                    .append("timestamp", date(row, "timestamp"));
+            final String values = text(row, "context_values");
+            if (values != null && !Document.parse(values).isEmpty()) {
+                context.put("context_values", Document.parse(values));
+            }
+            return context;
+        }));
 
         TARGETS.put("context_entries", new Target("context_entries", row -> new Document("_id", id(row, "id"))
                 .append("user_id", id(row, "user_id"))

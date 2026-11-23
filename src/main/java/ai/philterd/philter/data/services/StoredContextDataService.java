@@ -62,8 +62,19 @@ public abstract class StoredContextDataService implements ContextDataService {
     protected abstract void updateSettings(final String userId, final String contextName, final Boolean disambiguation,
             final String disambiguationScope, final Boolean ledger);
 
-    /** Removes the owner's context, not its entries or vectors. */
+    /** Removes the owner's context, with its values, not its entries or vectors. */
     protected abstract void delete(final String userId, final String contextName);
+
+    /**
+     * Stores the value under the key unless the owner's context holds one, atomically, and returns whichever is
+     * stored afterwards, or null when there is no such context.
+     */
+    protected abstract String insertValueIfAbsent(final String userId, final String contextName, final String key,
+            final String value);
+
+    /** Stores the value under the key in the owner's context and returns whether there is such a context. */
+    protected abstract boolean updateValue(final String userId, final String contextName, final String key,
+            final String value);
 
     @Override
     public ServiceResponse create(final String contextName, final String userId) {
@@ -251,6 +262,27 @@ public abstract class StoredContextDataService implements ContextDataService {
 
         return new ServiceResponse("Context deleted successfully.", true);
 
+    }
+
+    @Override
+    public String putValueIfAbsent(final String userId, final String contextName, final String key, final String value) {
+        checkValue(key, value);
+        return insertValueIfAbsent(userId, contextName, key, value);
+    }
+
+    @Override
+    public boolean putValue(final String userId, final String contextName, final String key, final String value) {
+        checkValue(key, value);
+        return updateValue(userId, contextName, key, value);
+    }
+
+    private static void checkValue(final String key, final String value) {
+        if (key == null || !VALUE_KEY.matcher(key).matches()) {
+            throw new IllegalArgumentException("A context value key must match " + VALUE_KEY.pattern() + ".");
+        }
+        if (value == null || value.isEmpty() || value.length() > MAX_VALUE_LENGTH) {
+            throw new IllegalArgumentException("A context value must be 1 to " + MAX_VALUE_LENGTH + " characters.");
+        }
     }
 
 }

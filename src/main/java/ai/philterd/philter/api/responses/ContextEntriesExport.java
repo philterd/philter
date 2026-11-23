@@ -16,11 +16,13 @@
 package ai.philterd.philter.api.responses;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The portable representation of a context's token-to-replacement mapping table. This is the body
  * returned by the export endpoint and accepted by the import endpoint, so a mapping table can be
- * round-tripped between contexts, accounts, or environments to keep pseudonymization consistent.
+ * round-tripped between contexts, accounts, or environments to keep pseudonymization consistent. It carries the
+ * context's values too, such as its random date shift, so dates keep lining up after an import.
  */
 public class ContextEntriesExport {
 
@@ -31,15 +33,23 @@ public class ContextEntriesExport {
     private String context;
     private int count;
     private List<ContextEntryExport> entries;
+    // Absent from an export made before contexts held values.
+    private Map<String, String> values;
 
     public ContextEntriesExport() {
     }
 
     public ContextEntriesExport(final String context, final List<ContextEntryExport> entries) {
+        this(context, entries, null);
+    }
+
+    public ContextEntriesExport(final String context, final List<ContextEntryExport> entries,
+                                final Map<String, String> values) {
         this.version = CURRENT_VERSION;
         this.context = context;
         this.entries = entries;
         this.count = entries != null ? entries.size() : 0;
+        this.values = values;
     }
 
     public int getVersion() {
@@ -72,6 +82,14 @@ public class ContextEntriesExport {
 
     public void setEntries(final List<ContextEntryExport> entries) {
         this.entries = entries;
+    }
+
+    public Map<String, String> getValues() {
+        return values;
+    }
+
+    public void setValues(final Map<String, String> values) {
+        this.values = values;
     }
 
 }

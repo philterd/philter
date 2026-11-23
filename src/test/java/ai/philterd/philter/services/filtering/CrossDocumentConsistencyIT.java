@@ -224,7 +224,7 @@ class CrossDocumentConsistencyIT extends AbstractMongoIT {
         properties.put("span.disambiguation.enabled", "false");
         final PhileasConfiguration configuration = new PhileasConfiguration(properties);
 
-        final ContextService contextService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), userId, context);
+        final ContextService contextService = new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null), org.mockito.Mockito.mock(ai.philterd.philter.data.services.ContextDataService.class)).forContext(new ContextCache(null, 0, null, false), userId, context);
 
         final PlainTextFilterService filterService = new PlainTextFilterService(
                 configuration, contextService, new NoOpVectorService(), mock(HttpClient.class));

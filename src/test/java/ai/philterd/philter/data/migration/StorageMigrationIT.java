@@ -192,6 +192,7 @@ class StorageMigrationIT {
             storage.redactLists().saveOrUpdate("req", jordan.getId(), List.of("always"), List.of("never"), "test");
 
             assertTrue(storage.contexts().create("claims", jordan.getId(), true, true).isSuccessful());
+            storage.contexts().putValueIfAbsent(jordan.getId(), "claims", "%00date-shift", "-400");
             final String replacement = storage.contextEntries().putReplacementIfAbsent(jordan.getId(), "claims",
                     "Jordan Smith", "{{{PERSON-1}}}", "PERSON").getReplacement();
             final Span span = new Span();
@@ -305,6 +306,7 @@ class StorageMigrationIT {
         assertEquals(List.of("Ünïcödé", "with, comma"), mongo.customLists().findOneByName("names", filled.userId()).getItems());
         assertEquals(List.of("always"), mongo.redactLists().find(filled.userId()).getTermsToAlwaysRedact());
         assertTrue(mongo.contexts().findOneByNameAndUserId("claims", filled.userId()).isLedger());
+        assertEquals("-400", mongo.contexts().findOneByNameAndUserId("claims", filled.userId()).getValues().get("%00date-shift"));
         assertEquals(filled.replacement(), mongo.contextEntries().getReplacement(filled.userId(), "claims", "Jordan Smith"));
         assertEquals(2, mongo.vectors().forUser(filled.userId()).getVectorRepresentation("claims", FilterType.PERSON).size());
         assertEquals("phield key", mongo.adminSettings().findAdminSettings().getPhieldApiKey());
@@ -325,7 +327,7 @@ class StorageMigrationIT {
         final var migrated = mongo.auditLog().find(null, AuditLogEvent.STORAGE_MIGRATED.getAuditLogEvent(), null, null, 0, 10);
         assertEquals(1, migrated.size());
         assertTrue(migrated.get(0).details().contains("source: " + sqlitePath), migrated.get(0).details());
-        assertEquals(1, new Document(mongoClient.getDatabase("philter").getCollection("schema_version")
+        assertEquals(2, new Document(mongoClient.getDatabase("philter").getCollection("schema_version")
                 .find(new Document("_id", "version")).first()).getInteger("version"));
 
     }
@@ -416,10 +418,10 @@ class StorageMigrationIT {
         fill();
         try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + sqlitePath);
              var statement = connection.createStatement()) {
-            statement.executeUpdate("UPDATE schema_version SET version = 2");
+            statement.executeUpdate("UPDATE schema_version SET version = 99");
         }
         final StorageMigration.Refused refused = assertThrows(StorageMigration.Refused.class, this::migrate);
-        assertTrue(refused.getMessage().contains("schema version 2"), refused.getMessage());
+        assertTrue(refused.getMessage().contains("schema version 99"), refused.getMessage());
         assertFalse(mongoClient.getDatabase("philter").listCollectionNames().iterator().hasNext());
     }
 

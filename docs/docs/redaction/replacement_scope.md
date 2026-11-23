@@ -67,6 +67,19 @@ The mapping table for a context can be inspected and managed through the context
 
 Deleting a mapping means the next occurrence of that value is treated as new and receives a fresh replacement.
 
+## Random date shifts
+
+A date filter strategy of `SHIFT` with `"shiftRandom": true` and `"replacementScope": "CONTEXT"` draws one random shift for the context, for the first date the context sees, and moves every date redacted in that context by the same number of days. Dates keep their order and the number of days between them, within a document and across documents. With the default `DOCUMENT` scope, or with no context, each date is shifted by its own random amount. See [Dates](../policies/filters/common_filters/dates.md).
+
+Philter stores the shift with the context, not as a mapping:
+
+* It is not evicted when the context reaches `MAX_CONTEXT_SIZE`, and does not count toward it.
+* It does not appear in `GET /api/contexts/{name}/entries` and cannot be deleted through the entry endpoints.
+* [Clearing the context's mappings](contexts.md#clearing-a-context) keeps it, so later dates still line up with earlier ones. [Deleting the context](contexts.md#deleting-a-context) removes it, and a context created again with the same name draws a new shift.
+* [Export and import](../api_and_sdks/api/contexts_api.md#export-a-contexts-mapping-table) carry it, in the export's `values`. Treat an export that holds it as you would the original dates.
+
+The shift applies to every subject redacted in the context. If one known original date reveals the shift, it reveals every date in the context, so use a separate context per subject (for example, per patient) when each needs its own shift.
+
 ## Not the same as disambiguation scope
 
 Replacement scope is distinct from **[disambiguation scope](disambiguation.md)**, despite the similar document and context wording:

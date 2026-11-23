@@ -71,7 +71,7 @@ class ContextExportImportIT extends AbstractMongoIT {
     private ContextEntriesExport learnAndExport(final String user, final String context) {
 
         final ContextService source = new ai.philterd.philter.services.context.StoredContextServices(
-                new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), user, context);
+                new MongoContextEntryDataService(mongoClient, null), mock(ai.philterd.philter.data.services.ContextDataService.class)).forContext(new ContextCache(null, 0, null, false), user, context);
         assertEquals(LEARNED, source.computeReplacementIfAbsent(TOKEN, FILTER_TYPE, () -> LEARNED));
 
         final List<ContextEntryExport> exported = new ArrayList<>();
@@ -97,7 +97,7 @@ class ContextExportImportIT extends AbstractMongoIT {
 
         final AtomicBoolean regenerated = new AtomicBoolean(false);
         final ContextService destination = new ai.philterd.philter.services.context.StoredContextServices(
-                new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), user, context);
+                new MongoContextEntryDataService(mongoClient, null), mock(ai.philterd.philter.data.services.ContextDataService.class)).forContext(new ContextCache(null, 0, null, false), user, context);
         final String resolved = destination.computeReplacementIfAbsent(TOKEN, FILTER_TYPE, () -> {
             regenerated.set(true);
             return "A_DIFFERENT_REPLACEMENT";

@@ -20,6 +20,7 @@ import ai.philterd.philter.data.contract.ApiKeyDataServiceContract;
 import ai.philterd.philter.data.contract.AuditLogServiceContract;
 import ai.philterd.philter.data.contract.ContextDataServiceContract;
 import ai.philterd.philter.data.contract.ContextEntryDataServiceContract;
+import ai.philterd.philter.data.contract.ContextValueContract;
 import ai.philterd.philter.data.contract.CustomListDataServiceContract;
 import ai.philterd.philter.data.contract.LedgerDataServiceContract;
 import ai.philterd.philter.data.contract.LegalHoldDataServiceContract;
@@ -45,6 +46,7 @@ class MongoStorageContractIT extends AbstractMongoIT implements
         AuditLogServiceContract,
         ContextDataServiceContract,
         ContextEntryDataServiceContract,
+        ContextValueContract,
         CustomListDataServiceContract,
         LedgerDataServiceContract,
         LegalHoldDataServiceContract,

@@ -82,9 +82,11 @@ class MongoSchemaStoreIT extends AbstractMongoIT {
     }
 
     @Test
-    void theShippedReleaseRecordsTheBaseline() {
-        assertEquals(SchemaMigrator.BASELINE_VERSION, migrator(MongoMigrations.all(mongoClient)).migrate());
-        assertEquals(SchemaMigrator.BASELINE_VERSION, version().getInteger("version"));
+    void aNewDatabaseRecordsThisReleasesVersion() {
+        final int expected = SchemaMigrator.expectedVersion(MongoMigrations.all(mongoClient));
+        assertEquals(2, expected);
+        assertEquals(expected, migrator(MongoMigrations.all(mongoClient)).migrate());
+        assertEquals(expected, version().getInteger("version"));
     }
 
     @Test

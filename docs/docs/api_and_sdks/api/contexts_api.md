@@ -170,6 +170,8 @@ Returns `200 OK` on success, `400 Bad Request` if no setting is given, `disambig
 
 * `owner` (optional, admin only) - Username of another user whose context to delete. Requires cross-user access to be enabled; otherwise it returns `404 Not Found`.
 
+Deleting a context also removes its entries, its learned disambiguation vectors, and its [random date shift](../../redaction/replacement_scope.md#random-date-shifts).
+
 A delete is **rejected with `409 Conflict`** if any asynchronously-submitted document referencing the context is still pending or processing. Either wait for the jobs to finish (poll the [Documents API](documents_api.md)) or delete the pending jobs first.
 
 ### Responses
@@ -230,7 +232,7 @@ The original token is never returned by this endpoint; only a keyed hash of it i
 |----------|-----------------------------------|--------------------------------------------|
 | `DELETE` | `/api/contexts/{name}/entries`    | Remove all entries from a context.         |
 
-Emptying a context also deletes the span-disambiguation vectors stored for it under the `context` [disambiguation scope](#create-a-context). Its settings are unchanged.
+Emptying a context also deletes the span-disambiguation vectors stored for it under the `context` [disambiguation scope](#create-a-context). Its settings and its [random date shift](../../redaction/replacement_scope.md#random-date-shifts) are unchanged.
 
 ### Query Parameters
 
@@ -278,6 +280,8 @@ Returns `200 OK` with the export document. The response is sent with a `Content-
 
 > **Security:** the export contains a **keyed hash** (HMAC-SHA256) of each original token, never the original value, along with its replacement. The key is derived from `PHILTER_ENCRYPTION_KEY` and the context owner's username and never leaves the deployment, so the hash cannot be reversed by guessing candidate values, and another user cannot match it by redacting guesses in a context of their own. That matters because most of what Philter detects is low-entropy: an SSN is only 10<sup>9</sup> possibilities, a date of birth far fewer. A bare digest of one is recoverable by enumeration in seconds. The export still reveals the replacement values, so treat it as sensitive and transmit/store it securely.
 
+> **Date shift:** when the context has a [random date shift](../../redaction/replacement_scope.md#random-date-shifts), the export includes it. With it, one known original date reveals every shifted date redacted in the context. Unlike the token hashes, the shift is not keyed to a user, so it applies wherever it is imported.
+
 > **Portability:** because the hash is keyed to the deployment's key and the owner's username, an export matches only in contexts owned by **the same username**: another of that user's contexts, or a context in another installation with the same `PHILTER_ENCRYPTION_KEY` whose user has that username. Imported into another user's context, the hashes do not match, and the original tokens are not stored, so they cannot be recomputed. An administrator moving a user's mappings imports them into that user's own context, with `owner`.
 
 Example request:
@@ -307,9 +311,14 @@ Example response body:
       "filterType": "PHONE_NUMBER",
       "replacementUuid": false
     }
-  ]
+  ],
+  "values": {
+    "%00date-shift": "-412"
+  }
 }
 ```
+
+`values` holds the values the context keeps apart from its entries, by key. `%00date-shift` is the context's [random date shift](../../redaction/replacement_scope.md#random-date-shifts) in days. It is present once a date has been shifted in the context with `shiftRandom` and `CONTEXT` scope, or once a shift has been imported into it.
 
 ## Import a Mapping Table into a Context
 
@@ -330,8 +339,9 @@ Accepts a document in the same format produced by the [export](#export-a-context
 
 ### Behavior and Validation
 
-* The payload is fully validated before anything is written, so a malformed entry cannot leave a partially-imported table. Each entry must have a valid 64-character hex `tokenHash` and a non-empty `replacement`.
+* The payload is fully validated before anything is written, so a malformed entry or value cannot leave a partially-imported table. Each entry must have a valid 64-character hex `tokenHash` and a non-empty `replacement`.
 * **The export must come from a context owned by the same username, in a deployment sharing this one's `PHILTER_ENCRYPTION_KEY`.** Token hashes are keyed per user (see [Export](#export-a-contexts-mapping-table)), and a hash from another user or a differently-keyed deployment is indistinguishable from a valid one: it will import successfully and then never match during redaction.
+* `values` is optional, and `on_conflict` applies to each value as it does to an entry: `skip` keeps a value the context already holds, and `overwrite` replaces it. Overwriting the date shift moves dates redacted afterwards by the imported shift, so they no longer line up with dates the context redacted before. The only key accepted is `%00date-shift`, and its value must be a whole number of days from 30 to 36525 either way, positive or negative. Phileas never draws a shift under 30 days. The `context_entries_imported` audit event names each value the import changed.
 * Imported entries start with a read count of zero. As with normal redaction, imports honor the context's `MAX_CONTEXT_SIZE` and may evict least-read entries when the context is full.
 
 Returns `200 OK` with a summary, `400 Bad Request` for an invalid `on_conflict` value or malformed payload, and `404 Not Found` if the context does not exist or the caller is not authorized to access it.

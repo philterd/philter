@@ -23,14 +23,24 @@ import ai.philterd.philter.data.services.Listings;
 import ai.philterd.philter.data.services.StoredContextDataService;
 import ai.philterd.philter.services.vectors.VectorServices;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.lang.reflect.Type;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-/** Stores contexts in SQLite, one row per context. */
+/** Stores contexts in SQLite, one row per context, with the context's values as a JSON object in its row. */
 public class SqliteContextDataService extends StoredContextDataService {
+
+    private static final Gson GSON = new Gson();
+    private static final Type VALUES = new TypeToken<LinkedHashMap<String, String>>() { }.getType();
 
     private final SqliteDatabase database;
 
@@ -55,7 +65,56 @@ public class SqliteContextDataService extends StoredContextDataService {
         final Integer ttl = row.integer("ttl_in_hours");
         context.setTtlInHours(ttl == null ? ContextEntity.DEFAULT_TTL_IN_HOURS : ttl);
         context.setTimestamp(row.date("timestamp"));
+        context.setValues(values(row.string("context_values")));
         return context;
+    }
+
+    private static Map<String, String> values(final String json) {
+        return json == null ? new LinkedHashMap<>() : GSON.fromJson(json, VALUES);
+    }
+
+    private static String storedValues(final Connection connection, final String userId, final String contextName)
+            throws SQLException {
+        return Sql.first(connection, "SELECT context_values FROM contexts WHERE user_id = ? AND context_name = ?",
+                row -> {
+                    final String json = row.string("context_values");
+                    return json == null ? "{}" : json;
+                }, userId, contextName);
+    }
+
+    @Override
+    protected String insertValueIfAbsent(final String userId, final String contextName, final String key, final String value) {
+        // A write holds the database's write lock from its start, so the read and the update are atomic.
+        return database.write(connection -> {
+            final String json = storedValues(connection, userId, contextName);
+            if (json == null) {
+                return null;
+            }
+            final Map<String, String> values = values(json);
+            final String existing = values.get(key);
+            if (existing != null) {
+                return existing;
+            }
+            values.put(key, value);
+            Sql.update(connection, "UPDATE contexts SET context_values = ? WHERE user_id = ? AND context_name = ?",
+                    GSON.toJson(values), userId, contextName);
+            return value;
+        });
+    }
+
+    @Override
+    protected boolean updateValue(final String userId, final String contextName, final String key, final String value) {
+        return database.write(connection -> {
+            final String json = storedValues(connection, userId, contextName);
+            if (json == null) {
+                return false;
+            }
+            final Map<String, String> values = values(json);
+            values.put(key, value);
+            Sql.update(connection, "UPDATE contexts SET context_values = ? WHERE user_id = ? AND context_name = ?",
+                    GSON.toJson(values), userId, contextName);
+            return true;
+        });
     }
 
     @Override

@@ -44,11 +44,11 @@ Listing entries returns replacement metadata; exports include keyed token hashes
 
 ### Clearing a Context
 
-Clearing a context resets its mappings without deleting the context itself (for example, at the start of a new project phase). It permanently deletes all existing sensitive-to-redacted mappings and the context's learned disambiguation vectors. Future redactions in this context generate new, different replacement values.
+Clearing a context resets its mappings without deleting the context itself (for example, at the start of a new project phase). It permanently deletes all existing sensitive-to-redacted mappings and the context's learned disambiguation vectors. Future redactions in this context generate new, different replacement values. The context's [random date shift](replacement_scope.md#random-date-shifts) is kept, so dates redacted afterwards still line up with those redacted before.
 
 ### Deleting a Context
 
-Deleting a context removes the context, its internal mappings, and its learned disambiguation vectors. It does **not** affect documents that have already been redacted and downloaded. A context can be deleted only by the user that created it or by an admin.
+Deleting a context removes the context, its internal mappings, its [random date shift](replacement_scope.md#random-date-shifts), and its learned disambiguation vectors. It does **not** affect documents that have already been redacted and downloaded. A context can be deleted only by the user that created it or by an admin.
 
 > Contexts are owned by the user that created them. Users are deactivated rather than deleted, and a deactivated user's contexts, mappings, and disambiguation vectors are kept, so they are there again if the user is reactivated.
 

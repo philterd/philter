@@ -93,7 +93,7 @@ class RedactionDisambiguationIT extends AbstractMongoIT {
 
         contextService = mock(ContextDataService.class);
 
-        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)), new MongoVectorServices(mongoClient), policyDataService,
+        redactionService = new RedactionService(new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null), org.mockito.Mockito.mock(ai.philterd.philter.data.services.ContextDataService.class)), new MongoVectorServices(mongoClient), policyDataService,
                 mock(CustomListDataService.class), redactListsService, contextService,
                 mock(AuditEventPublisher.class), mock(LedgerDataService.class), userService,
                 new SimpleMeterRegistry(), mock(PhieldPublisher.class),

@@ -16,17 +16,22 @@
 package ai.philterd.philter.services.context;
 
 import ai.philterd.phileas.services.context.ContextService;
+import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
+import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
  * The context service a redaction uses for one user's context: token replacements from the context's stored
- * entries, read through the request's cache.
+ * entries, read through the request's cache, and context values, such as the random date shift, stored with the
+ * context itself.
  */
 public class StoredContextService implements ContextService {
 
@@ -34,16 +39,23 @@ public class StoredContextService implements ContextService {
 
     private final ContextCache contextCache;
     private final ContextEntryDataService contextEntryService;
+    private final ContextDataService contextDataService;
     private final String userId;
     private final String contextName;
 
-    public StoredContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService, final String userId, final String contextName) {
+    // The context's values this request has read or stored, so the database is read once per key per request
+    // rather than once per date.
+    private final Map<String, String> values = new ConcurrentHashMap<>();
+
+    public StoredContextService(final ContextCache contextCache, final ContextEntryDataService contextEntryService,
+                                final ContextDataService contextDataService, final String userId, final String contextName) {
 
         // A context name is the user's own label and can describe whose data it holds, so it is not logged.
         LOGGER.info("Instantiating StoredContextService for user {}", userId);
 
         this.contextCache = contextCache;
         this.contextEntryService = contextEntryService;
+        this.contextDataService = contextDataService;
         this.userId = userId;
         this.contextName = contextName;
 
@@ -107,6 +119,33 @@ public class StoredContextService implements ContextService {
         final String stored = storeReplacement(token, replacementSupplier.get(), filterType);
 
         return stored != null ? stored : getReplacement(token);
+
+    }
+
+    /**
+     * Keeps the value with the context rather than among its entries, so it is never evicted, deleted with an
+     * entry, or listed, and is kept when the entries are cleared.
+     */
+    @Override
+    public String computeValueIfAbsent(final String key, final String filterType, final Supplier<String> valueSupplier) {
+
+        // Within this request the supplier runs at most once per key. Across requests, each proposes and the one
+        // stored first is used by all.
+        return values.computeIfAbsent(ContextDataService.valueKey(key), storedKey -> {
+
+            final ContextEntity context = contextDataService.findOneByNameAndUserId(contextName, userId);
+            final String stored = context == null ? null : context.getValues().get(storedKey);
+            if (stored != null) {
+                return stored;
+            }
+
+            final String proposed = valueSupplier.get();
+            final String kept = contextDataService.putValueIfAbsent(userId, contextName, storedKey, proposed);
+
+            // Null when the context was deleted during the request: nothing is stored, but this request keeps using it.
+            return kept == null ? proposed : kept;
+
+        });
 
     }
 

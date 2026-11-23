@@ -246,6 +246,54 @@ class StorageFlowsApiIT {
 
     }
 
+    private static final String DATE_SHIFT_POLICY = "{\"identifiers\":{\"date\":{\"dateFilterStrategies\":"
+            + "[{\"strategy\":\"SHIFT\",\"shiftRandom\":true,\"replacementScope\":\"CONTEXT\"}]}}}";
+
+    /** Redacts {@code original}, a MM/dd/yyyy date, in the context and returns how many days it was shifted. */
+    private long shiftIn(final String context, final String original) throws Exception {
+        final HttpResponse<String> redacted = send(authenticated("/api/filter?p=shift&c=" + context)
+                .header("Content-Type", "text/plain").POST(HttpRequest.BodyPublishers.ofString("Seen " + original + ".")).build());
+        assertEquals(200, redacted.statusCode(), redacted.body());
+        final java.util.regex.Matcher shifted = java.util.regex.Pattern.compile("\\d{2}/\\d{2}/\\d{4}").matcher(redacted.body());
+        assertTrue(shifted.find(), redacted.body());
+        final java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy");
+        return java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(original, format),
+                java.time.LocalDate.parse(shifted.group(), format));
+    }
+
+    @Test
+    @DisplayName("A context's random date shift is kept outside its entries and carried by export and import")
+    void aContextsDateShiftIsKeptAndCarried() throws Exception {
+
+        savePolicy("shift", DATE_SHIFT_POLICY);
+
+        final long shift = shiftIn("default", "03/27/2020");
+        assertEquals(shift, shiftIn("default", "11/02/2021"), "every date in the context moves by one shift");
+
+        final HttpResponse<String> entries = send(authenticated("/api/contexts/default/entries").GET().build());
+        assertEquals(200, entries.statusCode(), entries.body());
+        assertEquals(0, gson.fromJson(entries.body(), JsonObject.class).getAsJsonArray("entries").size(),
+                "the shift is not listed as an entry");
+
+        final HttpResponse<String> exported = send(authenticated("/api/contexts/default/entries/export").GET().build());
+        assertEquals(200, exported.statusCode(), exported.body());
+        assertEquals(String.valueOf(shift), gson.fromJson(exported.body(), JsonObject.class)
+                .getAsJsonObject("values").get("%00date-shift").getAsString());
+
+        final HttpResponse<String> created = send(authenticated("/api/contexts").header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"copy\"}")).build());
+        assertEquals(201, created.statusCode(), created.body());
+        final HttpResponse<String> imported = send(authenticated("/api/contexts/copy/entries/import")
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(exported.body())).build());
+        assertEquals(200, imported.statusCode(), imported.body());
+        assertEquals(shift, shiftIn("copy", "01/15/2022"), "the imported shift is used");
+
+        final HttpResponse<String> emptied = send(authenticated("/api/contexts/default/entries").DELETE().build());
+        assertEquals(204, emptied.statusCode(), emptied.body());
+        assertEquals(shift, shiftIn("default", "06/30/2022"), "clearing the entries keeps the shift");
+
+    }
+
     @Test
     @DisplayName("A format-preserving replacement is reversed to its original")
     void aReplacementIsReidentified() throws Exception {

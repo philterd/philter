@@ -2870,7 +2870,7 @@
           "Contexts"
         ],
         "summary": "Export a context's mapping table.",
-        "description": "Returns the complete token-to-replacement mapping table for a context in a portable JSON form that can be re-imported into another context or environment. Only token hashes (never the original tokens) and their replacements are returned. Requires the `contexts:read` scope.",
+        "description": "Returns the complete token-to-replacement mapping table for a context in a portable JSON form that can be re-imported into another context or environment. Only token hashes (never the original tokens) and their replacements are returned, with the context's values, such as its random date shift, which together with one known original date reveals every shifted date in the context. Requires the `contexts:read` scope.",
         "operationId": "exportEntries",
         "parameters": [
           {
@@ -3049,7 +3049,7 @@
           "Contexts"
         ],
         "summary": "Import a mapping table into a context.",
-        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead. Token hashes are keyed per username, so mappings match only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY. Requires the `contexts:write` scope.",
+        "description": "Imports token-to-replacement mappings (as produced by the export endpoint) into a context. By default an incoming token that already exists in the context is skipped; pass on_conflict=overwrite to replace existing replacements instead. Token hashes are keyed per username, so mappings match only when exported from a context of the same username under the same PHILTER_ENCRYPTION_KEY. The context's values, such as its random date shift, follow on_conflict as entries do. Requires the `contexts:write` scope.",
         "operationId": "importEntries",
         "parameters": [
           {
@@ -18860,6 +18860,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ContextEntryExport"
+            }
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
             }
           }
         }

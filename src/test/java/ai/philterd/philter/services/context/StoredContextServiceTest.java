@@ -15,8 +15,10 @@
  */
 package ai.philterd.philter.services.context;
 
+import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.ContextEntryEntity;
 import ai.philterd.philter.data.mongodb.MongoIds;
+import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.services.cache.ContextCache;
 import ai.philterd.philter.testutil.LogCapture;
@@ -29,6 +31,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +47,9 @@ class StoredContextServiceTest {
     @Mock
     private ContextEntryDataService contextEntryService;
 
+    @Mock
+    private ContextDataService contextDataService;
+
     private final String userId = MongoIds.newId();
     private final String contextName = "test-context";
 
@@ -49,7 +57,7 @@ class StoredContextServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new StoredContextService(contextCache, contextEntryService, userId, contextName);
+        service = new StoredContextService(contextCache, contextEntryService, contextDataService, userId, contextName);
         // The cache is keyed by the token's hash, which the entry service computes for the context's owner.
         org.mockito.Mockito.lenient().when(contextEntryService.tokenHash(org.mockito.ArgumentMatchers.eq(userId),
                 org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> "hash:" + invocation.getArgument(1));
@@ -135,8 +143,43 @@ class StoredContextServiceTest {
     void theContextNameIsNotLogged() {
         // A context name is the user's own label, such as a patient's or a case's, so it stays out of the log.
         try (final LogCapture log = new LogCapture()) {
-            new StoredContextService(contextCache, contextEntryService, userId, "cohort-alpha-7f3");
+            new StoredContextService(contextCache, contextEntryService, contextDataService, userId, "cohort-alpha-7f3");
             assertFalse(log.contains("cohort-alpha-7f3"), log.messages().toString());
         }
     }
+
+    @Test
+    void aContextValueIsReadFromTheContextAndNotFromItsEntries() {
+        final ContextEntity context = new ContextEntity();
+        context.getValues().put("%00date-shift", "-400");
+        when(contextDataService.findOneByNameAndUserId(contextName, userId)).thenReturn(context);
+
+        assertEquals("-400", service.computeValueIfAbsent("\0date-shift", "date", () -> fail("the shift is stored")));
+        assertEquals("-400", service.computeValueIfAbsent("\0date-shift", "date", () -> fail("the shift is stored")));
+
+        // Read once per request, not once per date.
+        verify(contextDataService, times(1)).findOneByNameAndUserId(contextName, userId);
+        verifyNoInteractions(contextEntryService);
+    }
+
+    @Test
+    void aNewContextValueIsTheOneStored() {
+        when(contextDataService.findOneByNameAndUserId(contextName, userId)).thenReturn(new ContextEntity());
+        // Another request stored its shift first.
+        when(contextDataService.putValueIfAbsent(userId, contextName, "%00date-shift", "-12")).thenReturn("-400");
+
+        assertEquals("-400", service.computeValueIfAbsent("\0date-shift", "date", () -> "-12"));
+        verifyNoInteractions(contextEntryService);
+    }
+
+    @Test
+    void aContextValueIsNotKeptWhenTheContextIsGone() {
+        when(contextDataService.findOneByNameAndUserId(contextName, userId)).thenReturn(null);
+        when(contextDataService.putValueIfAbsent(userId, contextName, "%00date-shift", "-12")).thenReturn(null);
+
+        assertEquals("-12", service.computeValueIfAbsent("\0date-shift", "date", () -> "-12"));
+        // The rest of the request still uses one shift.
+        assertEquals("-12", service.computeValueIfAbsent("\0date-shift", "date", () -> "-99"));
+    }
+
 }

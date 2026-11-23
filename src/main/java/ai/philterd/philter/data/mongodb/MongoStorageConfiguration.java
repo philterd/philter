@@ -78,8 +78,9 @@ public class MongoStorageConfiguration {
     }
 
     @Bean
-    public ContextServices contextServices(final MongoContextEntryDataService contextEntryDataService) {
-        return new StoredContextServices(contextEntryDataService);
+    public ContextServices contextServices(final MongoContextEntryDataService contextEntryDataService,
+                                           final ContextDataService contextDataService) {
+        return new StoredContextServices(contextEntryDataService, contextDataService);
     }
 
     @Bean

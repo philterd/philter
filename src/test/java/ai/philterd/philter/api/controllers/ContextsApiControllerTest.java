@@ -47,6 +47,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.any;
@@ -445,6 +447,166 @@ class ContextsApiControllerTest {
                 .andExpect(status().isOk());
 
         verify(contextEntryService).importEntryByHash(eq(userId), eq("ctx"), eq(VALID_HASH), eq("R"), eq("PERSON"), eq(false), eq(true));
+    }
+
+    @Test
+    void exportCarriesTheContextsValues() throws Exception {
+        final ContextEntity context = contextOwnedBy(userId);
+        context.getValues().put("%00date-shift", "-400");
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(context);
+        when(contextEntryService.findAllByUserIdAndContext(eq(userId), eq("ctx"))).thenReturn(List.of());
+
+        final String body = mockMvc.perform(get("/api/contexts/ctx/entries/export").header("Authorization", AUTH_HEADER)
+                        .requestAttr("requestId", "req-export-values"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertEquals("-400", new Gson().fromJson(body, ai.philterd.philter.api.responses.ContextEntriesExport.class)
+                .getValues().get("%00date-shift"));
+    }
+
+    private static final String IMPORT_BODY_WITH_VALUES =
+            "{\"version\":1,\"context\":\"ctx\",\"entries\":[],\"values\":{\"%00date-shift\":\"-400\"}}";
+
+    @Test
+    void importKeepsAnExistingContextValueByDefault() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY_WITH_VALUES)
+                        .requestAttr("requestId", "req-import-values"))
+                .andExpect(status().isOk());
+
+        verify(contextService).putValueIfAbsent(userId, "ctx", "%00date-shift", "-400");
+        verify(contextService, never()).putValue(any(), any(), any(), any());
+    }
+
+    @Test
+    void importOverwritesAContextValueWhenAsked() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        when(contextService.putValue(userId, "ctx", "%00date-shift", "-400")).thenReturn(true);
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .param("on_conflict", "overwrite")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(IMPORT_BODY_WITH_VALUES)
+                        .requestAttr("requestId", "req-import-values-ow"))
+                .andExpect(status().isOk());
+
+        verify(contextService).putValue(userId, "ctx", "%00date-shift", "-400");
+        verify(contextService, never()).putValueIfAbsent(any(), any(), any(), any());
+        // A changed date shift is named in the audit event.
+        verify(auditEventPublisher).auditEvent(eq("req-import-values-ow"), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORTED),
+                eq(userId), isNull(), any(), eq("context: ctx, owner: " + userId
+                        + ", inserted: 0, overwritten: 0, skipped: 0, values changed: %00date-shift"));
+    }
+
+    /** Imports {@code body}'s values into a context that holds {@code existing} as its shift, and returns the audit details. */
+    private String importValues(final String requestId, final String existing, final boolean overwrite,
+                                final String storedAfter) throws Exception {
+        final ContextEntity context = contextOwnedBy(userId);
+        if (existing != null) {
+            context.getValues().put("%00date-shift", existing);
+        }
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(context);
+        if (overwrite) {
+            when(contextService.putValue(userId, "ctx", "%00date-shift", "-400")).thenReturn(true);
+        } else {
+            when(contextService.putValueIfAbsent(userId, "ctx", "%00date-shift", "-400")).thenReturn(storedAfter);
+        }
+        final var builder = request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                .header("Authorization", AUTH_HEADER)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(IMPORT_BODY_WITH_VALUES)
+                .requestAttr("requestId", requestId);
+        if (overwrite) {
+            builder.param("on_conflict", "overwrite");
+        }
+        mockMvc.perform(builder).andExpect(status().isOk());
+        final org.mockito.ArgumentCaptor<String> details = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(auditEventPublisher).auditEvent(eq(requestId), eq(AuditLogEvent.CONTEXT_ENTRIES_IMPORTED),
+                eq(userId), isNull(), any(), details.capture());
+        return details.getValue();
+    }
+
+    @Test
+    void importAuditsOnlyAValueItChanged() throws Exception {
+        assertTrue(importValues("skip-new", null, false, "-400").endsWith(", values changed: %00date-shift"),
+                "a shift stored into a context without one is a change");
+    }
+
+    @Test
+    void importDoesNotAuditAValueItSkipped() throws Exception {
+        assertFalse(importValues("skip-existing", "-123", false, "-123").contains("values changed"),
+                "skip keeps the context's shift");
+    }
+
+    @Test
+    void importDoesNotAuditAValueThatLostToARedaction() throws Exception {
+        // A redaction stored its own shift after the context was read, so the import's was not kept.
+        assertFalse(importValues("skip-race", null, false, "-77").contains("values changed"));
+    }
+
+    @Test
+    void importDoesNotAuditOverwritingAValueWithItself() throws Exception {
+        assertFalse(importValues("overwrite-same", "-400", true, null).contains("values changed"));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"30", "-30", "36525", "-36525", "-0412"})
+    void importAcceptsADateShiftInRange(final String days) throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1,\"context\":\"ctx\",\"entries\":[],\"values\":{\"%00date-shift\":\"" + days + "\"}}")
+                        .requestAttr("requestId", "req-import-values-range"))
+                .andExpect(status().isOk());
+
+        verify(contextService).putValueIfAbsent(userId, "ctx", "%00date-shift", days);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "\"date.shift\":\"-400\"", "\"%00other\":\"-400\"", "\"%00date-shift\":\"abc\"",
+            "\"%00date-shift\":\"1.5\"", "\"%00date-shift\":\"36526\"", "\"%00date-shift\":\"-36526\"",
+            "\"%00date-shift\":\"9999999999999\"", "\"%00date-shift\":\"\"", "\"%00date-shift\":null",
+            "\"%00date-shift\":\"0\"", "\"%00date-shift\":\"-0\"", "\"%00date-shift\":\"29\"",
+            "\"%00date-shift\":\"-29\"", "\"%00date-shift\":\"+400\"", "\"%00date-shift\":\" -400\""})
+    void importRefusesAContextValuePhileasCouldNotUse(final String value) throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1,\"context\":\"ctx\",\"entries\":[],\"values\":{" + value + "}}")
+                        .requestAttr("requestId", "req-import-values-refused"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextService, never()).putValueIfAbsent(any(), any(), any(), any());
+        verify(contextService, never()).putValue(any(), any(), any(), any());
+    }
+
+    @Test
+    void importRejectsAnInvalidContextValueBeforeWritingAnything() throws Exception {
+        when(contextService.findOne(eq("ctx"), eq(userId))).thenReturn(contextOwnedBy(userId));
+
+        mockMvc.perform(request(HttpMethod.POST, "/api/contexts/ctx/entries/import")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"version\":1,\"context\":\"ctx\",\"entries\":[" +
+                                "{\"tokenHash\":\"" + VALID_HASH + "\",\"replacement\":\"R\",\"filterType\":\"PERSON\",\"replacementUuid\":false}]," +
+                                "\"values\":{\"date.shift\":\"-400\"}}")
+                        .requestAttr("requestId", "req-import-values-bad"))
+                .andExpect(status().isBadRequest());
+
+        verify(contextEntryService, never()).importEntryByHash(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+        verify(contextService, never()).putValueIfAbsent(any(), any(), any(), any());
     }
 
     @Test

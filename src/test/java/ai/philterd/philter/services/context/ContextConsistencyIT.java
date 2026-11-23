@@ -42,7 +42,7 @@ import static org.mockito.Mockito.mock;
 class ContextConsistencyIT extends AbstractMongoIT {
 
     private ContextService serviceFor(final String userId, final String contextName) {
-        return new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null)).forContext(new ContextCache(null, 0, null, false), userId, contextName);
+        return new ai.philterd.philter.services.context.StoredContextServices(new MongoContextEntryDataService(mongoClient, null), org.mockito.Mockito.mock(ai.philterd.philter.data.services.ContextDataService.class)).forContext(new ContextCache(null, 0, null, false), userId, contextName);
     }
 
     @Test

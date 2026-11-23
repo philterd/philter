@@ -100,6 +100,24 @@ public class MongoContextDataService extends StoredContextDataService {
     }
 
     @Override
+    protected String insertValueIfAbsent(final String userId, final String contextName, final String key, final String value) {
+        // One document's update is atomic, so of concurrent calls only one finds the key absent and sets it.
+        final String field = "context_values." + key;
+        collection.updateOne(Filters.and(named(userId, contextName), Filters.exists(field, false)), Updates.set(field, value));
+        final Document document = collection.find(named(userId, contextName)).projection(Projections.include(field)).first();
+        if (document == null) {
+            return null;
+        }
+        final Document values = document.get("context_values", Document.class);
+        return values == null ? null : values.getString(key);
+    }
+
+    @Override
+    protected boolean updateValue(final String userId, final String contextName, final String key, final String value) {
+        return collection.updateOne(named(userId, contextName), Updates.set("context_values." + key, value)).getMatchedCount() > 0;
+    }
+
+    @Override
     public ContextEntity findOneByNameAndUserId(final String contextName, final String userId) {
         final Document document = collection.find(named(userId, contextName)).first();
         return document == null ? null : ContextDocuments.fromDocument(document);

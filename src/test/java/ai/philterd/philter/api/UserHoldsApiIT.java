@@ -19,13 +19,16 @@ import ai.philterd.philter.config.AdminAccessConfig;
 import ai.philterd.philter.config.LedgerDeletionConfig;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
+import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.services.LedgerDataService;
+import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +46,7 @@ import java.net.http.HttpResponse;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** A user hold, created as documented, covers all of its owner's ledger evidence. */
@@ -61,6 +65,7 @@ class UserHoldsApiIT {
     @Autowired private PolicyDataService policyDataService;
     @Autowired private ContextDataService contextDataService;
     @Autowired private LedgerDataService ledgerDataService;
+    @Autowired private LegalHoldDataService legalHoldDataService;
 
     private final Gson gson = new Gson();
 
@@ -69,6 +74,7 @@ class UserHoldsApiIT {
     private String username;
     private String userId;
     private String userKey;
+    private String adminName;
     private String adminKey;
 
     @BeforeEach
@@ -80,7 +86,8 @@ class UserHoldsApiIT {
         username = seedUser("user");
         userId = userService.findByUsername(username).getId();
         userKey = keyFor(username);
-        adminKey = keyFor(seedUser("admin"));
+        adminName = seedUser("admin");
+        adminKey = keyFor(adminName);
     }
 
     @AfterEach
@@ -120,6 +127,56 @@ class UserHoldsApiIT {
         ledgerDataService.initializeLedger(userId, documentId, "input-hash", "note.txt", "default", 1, "policy-hash");
         ledgerDataService.completeChain(userId, documentId);
         return documentId;
+    }
+
+    /** The hold with this reference in a listing's holds. */
+    private static JsonObject holdIn(final HttpResponse<String> listing, final String reference) {
+        for (final JsonElement hold : new Gson().fromJson(listing.body(), JsonObject.class).getAsJsonArray("holds")) {
+            if (reference.equals(hold.getAsJsonObject().get("reference").getAsString())) {
+                return hold.getAsJsonObject();
+            }
+        }
+        throw new AssertionError("no hold " + reference + " in " + listing.body());
+    }
+
+    @Test
+    @DisplayName("A hold an administrator placed on another user's evidence names the administrator as setBy, not the owner")
+    void setByNamesWhoPlacedTheHold() throws Exception {
+        final String reference = "review-" + UUID.randomUUID();
+        final HttpResponse<String> set = send(adminKey, "POST", "/api/holds?owner=" + username,
+                "{\"reference\":\"" + reference + "\",\"scopeType\":\"document_chain\",\"scopeValue\":\"" + completedChain() + "\"}");
+        assertEquals(201, set.statusCode(), set.body());
+        assertEquals(adminName, gson.fromJson(set.body(), JsonObject.class).get("setBy").getAsString());
+        assertNotEquals(username, adminName);
+
+        // The owner reads who placed it, by reference and in a listing.
+        final HttpResponse<String> got = send(userKey, "GET", "/api/holds/" + reference, null);
+        assertEquals(200, got.statusCode(), got.body());
+        assertEquals(adminName, gson.fromJson(got.body(), JsonObject.class).get("setBy").getAsString());
+        assertEquals(adminName, holdIn(send(userKey, "GET", "/api/holds?limit=100", null), reference).get("setBy").getAsString());
+
+        // Across every user, the hold names both its owner and who placed it.
+        final JsonObject listed = holdIn(send(adminKey, "GET", "/api/holds?all_users=true&q=" + reference, null), reference);
+        assertEquals(username, listed.get("owner").getAsString());
+        assertEquals(adminName, listed.get("setBy").getAsString());
+
+        // A user's own hold names them.
+        final HttpResponse<String> own = send(userKey, "POST", "/api/holds", "{\"reference\":\"own-" + reference + "\",\"scopeType\":\"user\"}");
+        assertEquals(201, own.statusCode(), own.body());
+        assertEquals(username, gson.fromJson(own.body(), JsonObject.class).get("setBy").getAsString());
+    }
+
+    @Test
+    @DisplayName("A hold whose setter no longer exists has a null setBy")
+    void setByIsNullWhenTheSetterIsGone() throws Exception {
+        final String reference = "orphan-" + UUID.randomUUID();
+        assertEquals(201, legalHoldDataService.create("req", reference, "document_chain", completedChain(), null, userId,
+                RecordIds.newId()).getStatusCode());
+
+        final HttpResponse<String> got = send(userKey, "GET", "/api/holds/" + reference, null);
+        assertEquals(200, got.statusCode(), got.body());
+        assertTrue(gson.fromJson(got.body(), JsonObject.class).get("setBy").isJsonNull(), got.body());
+        assertTrue(holdIn(send(userKey, "GET", "/api/holds?limit=100", null), reference).get("setBy").isJsonNull());
     }
 
     @Test

@@ -53,6 +53,7 @@ Set, list, and get return holds with these fields:
 | `scopeValue` | The document id, or for a `user` hold the owner's username. |
 | `reason` | The reason given when the hold was set, or `null`. |
 | `setAt` | When the hold was set (ISO 8601, UTC). |
+| `setBy` | The username of the user who placed the hold: the owner, or an administrator who placed it on the owner's evidence. `null` when that user no longer exists. |
 | `owner` | The owner's username. Present only in a listing with `all_users=true`. |
 
 ```json
@@ -61,7 +62,8 @@ Set, list, and get return holds with these fields:
   "scopeType": "document_chain",
   "scopeValue": "doc-abc123",
   "reason": "Preserve pending resolution",
-  "setAt": "2026-06-08T14:11:33.000Z"
+  "setAt": "2026-06-08T14:11:33.000Z",
+  "setBy": "jordan"
 }
 ```
 

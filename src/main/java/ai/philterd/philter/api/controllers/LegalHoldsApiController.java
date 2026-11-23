@@ -170,7 +170,7 @@ public class LegalHoldsApiController extends AbstractApiController {
 
         final LegalHoldEntity created = legalHoldDataService.findByReference(
                 request.getReference(), userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created, setterNames(List.of(created))));
     }
 
     @Operation(summary = "List legal holds.",
@@ -212,10 +212,11 @@ public class LegalHoldsApiController extends AbstractApiController {
             final Listings.Page<LegalHoldEntity> page =
                     legalHoldDataService.list(null, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
             final Map<String, String> owners = ownerNames(userService, page.items(), LegalHoldEntity::getUserId);
+            final Map<String, String> setters = setterNames(page.items());
             auditAllUsersListing(auditEventPublisher, currentRequestId(), apiKeyEntity.getUserId(), "list legal holds");
             return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().<LegalHoldResponse>map(hold -> new OwnedLegalHoldResponse(
                     hold.getReference(), hold.getScopeType(), hold.getScopeValue(), hold.getReason(), hold.getSetAt(),
-                    owners.get(hold.getUserId()))).toList(), page.total()));
+                    setBy(hold, setters), owners.get(hold.getUserId()))).toList(), page.total()));
         }
 
         final String userId = resolveTargetUserId(userService, apiKeyEntity.getUserId(), owner);
@@ -229,7 +230,8 @@ public class LegalHoldsApiController extends AbstractApiController {
         final Listings.Page<LegalHoldEntity> page =
                 legalHoldDataService.list(userId, q, holdSort, normalizeOffset(offset), normalizeLimit(limit));
 
-        return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().map(LegalHoldsApiController::toResponse).toList(),
+        final Map<String, String> setters = setterNames(page.items());
+        return ResponseEntity.ok(new GetHoldsResponse(page.items().stream().map(hold -> toResponse(hold, setters)).toList(),
                 page.total()));
     }
 
@@ -269,7 +271,7 @@ public class LegalHoldsApiController extends AbstractApiController {
             throw new NotFoundException();
         }
 
-        return ResponseEntity.ok(toResponse(hold));
+        return ResponseEntity.ok(toResponse(hold, setterNames(List.of(hold))));
     }
 
     @Operation(summary = "Release a legal hold.",
@@ -333,12 +335,24 @@ public class LegalHoldsApiController extends AbstractApiController {
         return ResponseEntity.noContent().build();
     }
 
-    private static LegalHoldResponse toResponse(final LegalHoldEntity entity) {
+    /** The usernames of the users who placed the holds, by user id, in one lookup. A setter that no longer exists is absent. */
+    private Map<String, String> setterNames(final List<LegalHoldEntity> holds) {
+        final List<LegalHoldEntity> recorded = holds.stream().filter(hold -> hold.getSetByUserId() != null).toList();
+        return ownerNames(userService, recorded, LegalHoldEntity::getSetByUserId);
+    }
+
+    /** The username of the user who placed the hold, or null when that user no longer exists. */
+    private static String setBy(final LegalHoldEntity hold, final Map<String, String> setters) {
+        return hold.getSetByUserId() == null ? null : setters.get(hold.getSetByUserId());
+    }
+
+    private static LegalHoldResponse toResponse(final LegalHoldEntity entity, final Map<String, String> setters) {
         return new LegalHoldResponse(
                 entity.getReference(),
                 entity.getScopeType(),
                 entity.getScopeValue(),
                 entity.getReason(),
-                entity.getSetAt());
+                entity.getSetAt(),
+                setBy(entity, setters));
     }
 }

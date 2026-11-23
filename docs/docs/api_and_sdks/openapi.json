@@ -19788,6 +19788,13 @@
           "setAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "setBy": {
+            "description": "The username of the user who placed the hold: the owner, or an administrator who placed it on the owner's evidence. Null when that user no longer exists.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -20024,6 +20031,13 @@
           "setAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "setBy": {
+            "description": "The username of the user who placed the hold: the owner, or an administrator who placed it on the owner's evidence. Null when that user no longer exists.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

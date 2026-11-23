@@ -15,6 +15,8 @@
  */
 package ai.philterd.philter.api.responses;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Date;
 
 /**
@@ -27,14 +29,16 @@ public class LegalHoldResponse {
     private final String scopeValue;
     private final String reason;
     private final Date setAt;
+    private final String setBy;
 
     public LegalHoldResponse(final String reference, final String scopeType, final String scopeValue,
-                              final String reason, final Date setAt) {
+                              final String reason, final Date setAt, final String setBy) {
         this.reference = reference;
         this.scopeType = scopeType;
         this.scopeValue = scopeValue;
         this.reason = reason;
         this.setAt = setAt;
+        this.setBy = setBy;
     }
 
     public String getReference() { return reference; }
@@ -42,4 +46,8 @@ public class LegalHoldResponse {
     public String getScopeValue() { return scopeValue; }
     public String getReason() { return reason; }
     public Date getSetAt() { return setAt; }
+
+    @Schema(description = "The username of the user who placed the hold: the owner, or an administrator who placed it "
+            + "on the owner's evidence. Null when that user no longer exists.", nullable = true)
+    public String getSetBy() { return setBy; }
 }

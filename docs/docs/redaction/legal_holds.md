@@ -73,6 +73,8 @@ Authorization: Bearer <api-key>
 
 Admins may pass `?owner=<username>` to list holds for a specific user, or `?all_users=true` to list every user's holds; both require `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. Pagination is supported via `?offset=` and `?limit=`.
 
+Each hold's `setBy` is the username of the user who placed it. It differs from the hold's owner when an administrator placed the hold on another user's evidence, and it is `null` when that user no longer exists.
+
 To retrieve a specific hold by reference:
 
 ```

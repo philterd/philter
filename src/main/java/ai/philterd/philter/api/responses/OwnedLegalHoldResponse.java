@@ -25,8 +25,8 @@ public class OwnedLegalHoldResponse extends LegalHoldResponse {
     private final String owner;
 
     public OwnedLegalHoldResponse(final String reference, final String scopeType, final String scopeValue,
-                                  final String reason, final Date setAt, final String owner) {
-        super(reference, scopeType, scopeValue, reason, setAt);
+                                  final String reason, final Date setAt, final String setBy, final String owner) {
+        super(reference, scopeType, scopeValue, reason, setAt, setBy);
         this.owner = owner;
     }
 

@@ -27,6 +27,7 @@ import ai.philterd.phileas.services.disambiguation.vector.VectorService;
 import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.phileas.services.ReviewSampler;
 import ai.philterd.phileas.services.pdf.PdfPagePolicies;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
@@ -249,7 +250,8 @@ public class RedactionService {
 
     /**
      * For the queue worker. The async publication fence runs after computation and before any completed-result
-     * publication. A PDF waits for a free slot.
+     * publication. A PDF waits for a free slot. Review selection was drawn when the document was accepted, so the
+     * result's own selection is not recorded.
      */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                    final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
@@ -262,7 +264,7 @@ public class RedactionService {
     private RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                     final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
                                     final String filename, final String requestedDocumentId,
-                                    final Runnable beforePublication, final boolean waitForPdfSlot,
+                                    final Runnable beforePublication, final boolean queued,
                                     final List<PagePolicyRequest> pagePolicyRequests) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
@@ -435,7 +437,7 @@ public class RedactionService {
                 }
             }
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
-            try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
+            try (PdfRenderSlots.Slot ignored = pdfSlot(queued)) {
                 filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body,
                         MimeType.APPLICATION_PDF, pagePolicies == null ? null : pagePolicies.phileas());
             }
@@ -448,7 +450,7 @@ public class RedactionService {
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
-            try (PdfRenderSlots.Slot ignored = pdfSlot(waitForPdfSlot)) {
+            try (PdfRenderSlots.Slot ignored = pdfSlot(queued)) {
                 filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG);
             }
 
@@ -529,6 +531,11 @@ public class RedactionService {
                         + ", policy: " + AuditDetails.quote(appliedPolicy.name()) + ", policyVersion: " + appliedPolicy.version()
                         + (pagePolicies == null ? "" : ", pagePolicies: " + AuditDetails.quote(PagePolicyRequest.describe(pagePolicies.applied()))));
 
+        // A queued document's selection was drawn and recorded when it was accepted; see selectForReview.
+        if (!queued && filterResult.isReviewSampled()) {
+            auditReviewSampled(userEntity.getId(), documentId, appliedPolicy);
+        }
+
         return new RedactionOutcome(documentId, filterResult, appliedPolicy,
                 pagePolicies == null ? List.of() : pagePolicies.applied());
 
@@ -537,6 +544,33 @@ public class RedactionService {
             contextCache.close();
         }
 
+    }
+
+    /**
+     * Draws review selection for a queued document when it is accepted, with the policy captured for it, so the
+     * 202 response can report it. The worker's later draw is not used.
+     */
+    public boolean selectForReview(final String effectiveJson) {
+        final EffectiveConfiguration effective = gson.fromJson(effectiveJson, EffectiveConfiguration.class);
+        return ReviewSampler.isSelected(gson.fromJson(effective.policyJson(), Policy.class));
+    }
+
+    /** Records that the policy's config.review.samplingRate selected the request being served for review. */
+    public void auditReviewSampled(final String userId, final String documentId, final AppliedPolicy appliedPolicy) {
+        auditEventPublisher.auditEvent(currentRequestId(), AuditLogEvent.REDACTION_REVIEW_SAMPLED, userId, null, null,
+                "documentId: " + AuditDetails.quote(documentId) + ", policy: " + AuditDetails.quote(appliedPolicy.name())
+                        + ", policyVersion: " + appliedPolicy.version());
+    }
+
+    // The X-Request-Id of the request being served. Only absent when called outside a request, as in a unit test.
+    private static String currentRequestId() {
+        if (org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
+                instanceof final org.springframework.web.context.request.ServletRequestAttributes attributes
+                && attributes.getRequest().getAttribute(ai.philterd.philter.api.controllers.AbstractApiController.REQUEST_ID_ATTRIBUTE)
+                instanceof final String requestId) {
+            return requestId;
+        }
+        return null;
     }
 
     // The user's current policy by name, from the in-process cache while it holds the stored revision, else the

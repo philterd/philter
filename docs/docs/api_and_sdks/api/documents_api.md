@@ -2,6 +2,8 @@
 
 The Documents API exposes the lifecycle of asynchronously-submitted PDF, Word, and Excel redactions. When one of these is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
 
+A document the policy's [review sampling rate](../../policies/filter_policies.md#sampling-requests-for-review) selects for human spot review is selected when it is accepted: the `202 Accepted` response carries `X-Philter-Review: sampled`, and the status and download responses do not, so keep that header with the `documentId` if you route selected documents to a reviewer.
+
 > **Admin cross-user access:** by default each endpoint operates on the calling user's own documents. An **admin** may target another user by adding an `owner=<username>` query parameter to any endpoint (list, status, download, delete). A non-admin that names another user as `owner`, or an `owner` that does not exist, receives `404 Not Found`. Cross-user access is **disabled by default**; enable it with `ADMIN_CROSS_USER_ACCESS_ENABLED=true` (see [Settings](../../settings.md)). While disabled, naming another user as `owner` also returns `404 Not Found`. A deactivated user may be named as `owner`: deactivation keeps their data, and an admin reaches it as for an active user.
 
 > Philter serves HTTPS on port 8080 with a generated self-signed certificate by default, so the `curl` examples on this page pass `-k`. See the [TLS](../../settings.md#tls) settings to supply your own certificate.

@@ -43,6 +43,8 @@ public enum AuditLogEvent {
 
     DOCUMENT_REDACTION_INITIATED("document_redaction_initiated", Category.REDACTION_ACTIVITY),
     DOCUMENT_REDACTION_COMPLETED("document_redaction_completed", Category.REDACTION_ACTIVITY),
+    // Not switchable with redaction auditing: it is the record of which requests were selected for review.
+    REDACTION_REVIEW_SAMPLED("redaction_review_sampled"),
     REDACTED_FILE_DELETED("redacted_file_deleted"),
 
     REDACTION_LEDGER_QUERY("redaction_ledger_query"),

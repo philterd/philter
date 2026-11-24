@@ -86,6 +86,12 @@ public class FilterApiController extends AbstractApiController {
     public static final String DOCUMENT_ID_HEADER = "X-Document-Id";
     /** The policy and version that redacted each page set named with page_policy: {@code pages=policy@version; ...}. */
     public static final String PAGE_POLICIES_HEADER = "X-Philter-Page-Policies";
+    /**
+     * Present, as {@value #REVIEW_SAMPLED}, only when the policy's config.review.samplingRate selected the request. A
+     * queued document is drawn for when it is accepted, so the 202 carries it.
+     */
+    public static final String REVIEW_HEADER = "X-Philter-Review";
+    public static final String REVIEW_SAMPLED = "sampled";
 
     /** Documented in ApiDocumentationConfig, since the parameter is read from the request rather than bound. */
     public static final String PAGE_POLICY_PARAMETER =
@@ -339,7 +345,7 @@ public class FilterApiController extends AbstractApiController {
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
-                .headers(policyHeaders(outcome.appliedPolicy()))
+                .headers(policyHeaders(outcome))
                 .header(DOCUMENT_ID_HEADER, outcome.documentId())
                 .body(binaryDocumentFilterResult.getDocument());
 
@@ -386,7 +392,7 @@ public class FilterApiController extends AbstractApiController {
 
         // The id it was recorded under, so GET /api/ledger/{documentId} resolves it.
         final String documentId = outcome.documentId();
-        final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
+        final HttpHeaders headers = policyHeaders(outcome);
         headers.set(DOCUMENT_ID_HEADER, documentId);
         if (signingService.shouldSign(sign)) {
             headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
@@ -499,6 +505,8 @@ public class FilterApiController extends AbstractApiController {
         final String effectiveJson = redactionService.captureEffectiveConfiguration(userId, policyEntity, contextName, pageCaptures);
         entity.setEffectiveJson(effectiveJson);
         entity.setEffectiveHash(PolicyVersionDataService.contentHash(effectiveJson));
+        // Drawn now, with the captured policy, so this response can report it; the worker's later draw is not used.
+        final boolean reviewSampled = redactionService.selectForReview(effectiveJson);
         pendingDocumentDataService.save(entity);
 
         // Audit that a document was submitted for asynchronous redaction. The documentId is the
@@ -507,12 +515,18 @@ public class FilterApiController extends AbstractApiController {
                 "inputMimeType: " + inputMimeType.name() + ", outputMimeType: " + outputMimeType
                         + ", policy: " + AuditDetails.quote(policyName) + ", policyVersion: " + policyVersion
                         + (appliedPages.isEmpty() ? "" : ", pagePolicies: " + AuditDetails.quote(PagePolicyRequest.describe(appliedPages))));
+        if (reviewSampled) {
+            redactionService.auditReviewSampled(userId, documentId, new AppliedPolicy(policyName, policyVersion, policyContentHash));
+        }
 
         final String json = gson.toJson(Map.of("documentId", documentId));
 
         final HttpHeaders pageHeaders = new HttpHeaders();
         if (!appliedPages.isEmpty()) {
             pageHeaders.add(PAGE_POLICIES_HEADER, PagePolicyRequest.describe(appliedPages));
+        }
+        if (reviewSampled) {
+            pageHeaders.set(REVIEW_HEADER, REVIEW_SAMPLED);
         }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
@@ -527,13 +541,24 @@ public class FilterApiController extends AbstractApiController {
 
     }
 
-    /** As {@link #policyHeaders(AppliedPolicy)}, with the policy of each page set named with page_policy. */
+    /**
+     * As {@link #policyHeaders(AppliedPolicy)}, with the policy of each page set named with page_policy, and
+     * {@link #REVIEW_HEADER} when the request was selected for review.
+     */
     private static HttpHeaders policyHeaders(final RedactionOutcome outcome) {
         final HttpHeaders headers = policyHeaders(outcome.appliedPolicy());
         if (outcome.pagePolicies() != null && !outcome.pagePolicies().isEmpty()) {
             headers.add(PAGE_POLICIES_HEADER, PagePolicyRequest.describe(outcome.pagePolicies()));
         }
+        addReviewHeader(headers, outcome);
         return headers;
+    }
+
+    /** Adds {@link #REVIEW_HEADER} when the policy's sampling rate selected the request; otherwise nothing. */
+    static void addReviewHeader(final HttpHeaders headers, final RedactionOutcome outcome) {
+        if (outcome.result() != null && outcome.result().isReviewSampled()) {
+            headers.set(REVIEW_HEADER, REVIEW_SAMPLED);
+        }
     }
 
     /** Builds the response headers that report the applied policy name, version, and content hash. */

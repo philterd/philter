@@ -69,6 +69,7 @@ Every `filter` response reports which policy version governed the request, so th
 * `X-Philter-Policy-Name` - The name of the policy that was applied.
 * `X-Philter-Policy-Version` - The revision (version) of that policy that was applied. For an asynchronous PDF request the version is pinned when the request is accepted, and the `202 Accepted` response carries these headers; the deferred redaction is then governed by that pinned version.
 * `X-Philter-Page-Policies` - Present only on a PDF request with `page_policy`. The policy and version that redacted each page set, as `pages=policy@version` separated by `; `, for example `2-5,8=records@3; 12-=exhibits@1`. The other headers name the `p` policy, which redacted the unassigned pages.
+* `X-Philter-Review` - Present, with the value `sampled`, only when the policy's [review sampling rate](../../policies/filter_policies.md#sampling-requests-for-review) selected the request for human spot review. An asynchronous document is selected when it is accepted, so the `202 Accepted` response carries the header; the status and download responses do not. A response without it has not been checked by anyone: detection is probabilistic, so validate results against your own data whether or not the header is present. The selection is recorded in the [audit log](../../auditing.md) as `redaction_review_sampled`.
 
 Every successful plain-text `filter` response (200 OK) also includes:
 
@@ -183,7 +184,7 @@ curl -k -X POST "https://localhost:8080/api/explain" -d @file.txt -H "Content-Ty
 
 Example explain response:
 
-The response body carries the applied policy's `policyName`, `policyVersion`, and `policyContentHash`; the explain response does not set the `X-Philter-Policy-*` headers. The document ID is in the `X-Document-Id` response header. `identifiedSpans` lists every span the filters found; `appliedSpans` lists the spans that were redacted.
+The response body carries the applied policy's `policyName`, `policyVersion`, and `policyContentHash`; the explain response does not set the `X-Philter-Policy-*` headers. The document ID is in the `X-Document-Id` response header. `reviewSampled` is `true` when the policy's [review sampling rate](../../policies/filter_policies.md#sampling-requests-for-review) selected the request, which also sets the `X-Philter-Review: sampled` header. `identifiedSpans` lists every span the filters found; `appliedSpans` lists the spans that were redacted.
 
 ```json
 {
@@ -235,6 +236,7 @@ The response body carries the applied policy's `policyName`, `policyVersion`, an
     ]
   },
   "tokens": 5,
+  "reviewSampled": false,
   "policyName": "default",
   "policyVersion": 3,
   "policyContentHash": "9f2c4e1a7b3d5f60812a4c6e8b0d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e4b6d"

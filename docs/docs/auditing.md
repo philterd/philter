@@ -106,6 +106,7 @@ The audit log focuses on actions that change state or affect security, plus auth
 |-------|---------------------|
 | `document_redaction_initiated` | A document was submitted for asynchronous redaction. |
 | `document_redaction_completed` | A redaction completed. |
+| `redaction_review_sampled` | The policy's [review sampling rate](policies/filter_policies.md#sampling-requests-for-review) selected a redaction for human spot review. |
 | `redacted_file_download` | A redacted document was downloaded. |
 | `redacted_file_deleted` | An asynchronous redaction record was deleted. |
 | `redaction_ledger_query` | The redaction ledger was queried or searched. |
@@ -114,6 +115,8 @@ The audit log focuses on actions that change state or affect security, plus auth
 | `redaction_reversed` | A cryptographic redaction was reversed via `/api/reidentify` or `/api/reidentify/text`. See [Re-identification](#re-identification) below. |
 
 For these events the `details` field carries extra context: `document_redaction_initiated` records the name and pinned version of the policy applied (along with the input and output content types), while `document_redaction_completed` records the number of redactions performed and the name and version of the policy that governed them.
+
+`redaction_review_sampled` records the document ID and the policy name and version in `details`. Its `request_id` is the request's [`X-Request-Id`](api_and_sdks/api.md#request-ids). An asynchronous document is selected, and the event recorded, when the document is accepted, so a selected document whose redaction later fails still has the event. It is a security event, so it is recorded even when `AUDIT_REDACTION_EVENTS_ENABLED=false`. Comparing the count of these events for a policy with its count of `document_redaction_completed` events gives the share of requests selected.
 
 ### Re-identification
 

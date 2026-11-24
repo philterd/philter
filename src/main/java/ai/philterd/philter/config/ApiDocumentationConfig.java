@@ -20,6 +20,9 @@ import org.springframework.context.annotation.Configuration;
 public class ApiDocumentationConfig {
     private static final String SIGNATURE = ai.philterd.philter.services.signing.SigningService.SIGNATURE_HEADER;
     private static final String SIGNED = "An ES256 JWT binding the SHA-256 hash of the response body. Present when output signing is enabled or the request asked for it with sign=true; verify it with GET /api/signing-key.";
+    private static final String REVIEW = "sampled when the policy's config.review.samplingRate selected the request for "
+            + "human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 "
+            + "reports it. A response without it has not been checked: it still needs validating.";
 
     @Bean
     public OpenApiCustomizer apiWireContracts() {
@@ -97,9 +100,11 @@ public class ApiDocumentationConfig {
                             "explanation", object("appliedSpans", new ArraySchema().items(spanRef),
                                     "identifiedSpans", new ArraySchema().items(spanRef)),
                             "tokens", new IntegerSchema(), "policyName", new StringSchema(),
-                            "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema())));
+                            "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema(),
+                            "reviewSampled", new io.swagger.v3.oas.models.media.BooleanSchema())));
             final Operation explain = op(api, "/api/explain", "post");
             headers(explain, "200", ai.philterd.philter.api.controllers.FilterApiController.DOCUMENT_ID_HEADER);
+            header(explain, "200", ai.philterd.philter.api.controllers.FilterApiController.REVIEW_HEADER, REVIEW);
             header(explain, "200", SIGNATURE, SIGNED);
             // CSV text, not a JSON object.
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
@@ -145,6 +150,9 @@ public class ApiDocumentationConfig {
                                 + "pages=policy@version separated by \"; \".");
             }
             header(filter, "200", SIGNATURE, SIGNED + " Only text responses are signed.");
+            for (String status : new String[]{"200", "202"}) {
+                header(filter, status, ai.philterd.philter.api.controllers.FilterApiController.REVIEW_HEADER, REVIEW);
+            }
             headers(filter, "202", "Location", "X-Effective-Configuration-SHA256");
             retry(filter, "429", "Account async queue capacity reached.");
             retry(filter, "503", "Global queue capacity reached, admission contention wait (500 ms) exhausted, or recovery required.");

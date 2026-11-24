@@ -4328,6 +4328,9 @@
                       "type": "integer",
                       "format": "int32"
                     },
+                    "reviewSampled": {
+                      "type": "boolean"
+                    },
                     "tokens": {
                       "type": "integer",
                       "format": "int32"
@@ -4338,6 +4341,12 @@
             },
             "headers": {
               "X-Document-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Review": {
+                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
                 "schema": {
                   "type": "string"
                 }
@@ -4672,6 +4681,12 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Review": {
+                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Philter-Signature": {
                 "description": "An ES256 JWT binding the SHA-256 hash of the response body. Present when output signing is enabled or the request asked for it with sign=true; verify it with GET /api/signing-key. Only text responses are signed.",
                 "schema": {
@@ -4725,6 +4740,12 @@
                 }
               },
               "X-Philter-Policy-Version": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Review": {
+                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
                 "schema": {
                   "type": "string"
                 }

@@ -20,6 +20,12 @@ Uses Phileas 4.6.0.
   declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
   `OFFICE_MAX_ENTRIES` limit what one may decompress to. Author names and the creator, last modified by,
   company, and manager properties are cleared whatever the policy.
+- **Review sampling:** a policy's `config.review.samplingRate` selects that share of requests at random
+  for human spot review. A selected `/api/filter` or `/api/explain` response has the header
+  `X-Philter-Review: sampled`, explain's body has `reviewSampled`, and each selection is recorded as the
+  audit event `redaction_review_sampled`. A queued document is selected when it is accepted, so its
+  `202 Accepted` response carries the header
+  ([#217](https://github.com/philterd/philter/issues/217)).
 - **Different policies for different pages of a PDF:** the repeatable `page_policy` parameter,
   `<pages>:<policy>`, redacts a page set with its own policy, with `p` for the pages not assigned and
   one context for the whole document. The `X-Philter-Page-Policies` header and each ledger entry name

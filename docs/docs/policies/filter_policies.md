@@ -73,3 +73,27 @@ In this command, we have provided the parameter `p` along with a value that is t
 Philter will process the contents of `file.txt` by applying the policy named `email-and-phone-numbers`. As we saw in the policy above, this policy redacts email addresses and phone numbers. Philter will return the redacted text in response to the API call.
 
 To manipulate the sensitive information by methods other than redaction, see the [Filter Strategies](filter_strategies.md).
+
+### Sampling Requests for Review
+
+A policy can select a share of its requests for human spot review, so a person can check whole documents for values that were not detected. Set `config.review.samplingRate` to the probability, from `0.0` to `1.0`, that a request is selected:
+
+```
+{
+   "identifiers": { ... },
+   "config": {
+      "review": {
+         "samplingRate": 0.10
+      }
+   }
+}
+```
+
+The default is `0.0`, which selects no requests; `1.0` selects every request. Each request is selected independently at random, once per request whatever its size or format, and no count is kept between requests, so the share selected converges on the rate but is not exact over a small number of requests. For a PDF redacted with [`page_policy`](../api_and_sdks/api/filtering_api.md), the rate of the policy named by `p` applies and the page set policies' rates are ignored. A rate outside `0.0` to `1.0` is refused when the policy is saved. Selection does not change the redacted output.
+
+When a request is selected:
+
+* The `/api/filter` or `/api/explain` response has the header `X-Philter-Review: sampled`, and the `/api/explain` body has `"reviewSampled": true`. The header is absent when the request is not selected. An asynchronous document is selected when it is accepted, with the policy version pinned for it, so the `202 Accepted` response carries the header. See the [Filtering API](../api_and_sdks/api/filtering_api.md).
+* The [audit log](../auditing.md) records a `redaction_review_sampled` event with the request ID, the document ID, and the policy name and version.
+
+What happens to a selected request, such as queuing it for a reviewer, is up to your application. The header requests a check; its absence does not mean a result is correct. Detection is probabilistic, so validate results against your own data whether or not a request was selected.

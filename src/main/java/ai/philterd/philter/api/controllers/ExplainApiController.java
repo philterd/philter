@@ -116,6 +116,7 @@ public class ExplainApiController extends AbstractApiController {
         final String responseBody = gson.toJson(json);
         final HttpHeaders headers = new HttpHeaders();
         headers.set(FilterApiController.DOCUMENT_ID_HEADER, documentId);
+        FilterApiController.addReviewHeader(headers, outcome);
         if (signingService.shouldSign(sign)) {
             headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
                     responseBody,

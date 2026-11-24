@@ -16,7 +16,6 @@
 package ai.philterd.philter.data.mongodb;
 
 import ai.philterd.philter.audit.AuditEventPublisher;
-import ai.philterd.philter.data.RecordIds;
 import ai.philterd.philter.data.entities.SigningKeyEntity;
 import ai.philterd.philter.data.schema.SchemaMigrator;
 import ai.philterd.philter.data.services.LedgerDataService;
@@ -122,8 +121,7 @@ public final class MongoImport implements AutoCloseable {
 
     /** A record id where one is expected, kept as text when it is not one, as an audit event may hold. */
     private static Object idOrText(final Map<String, Object> row, final String column) {
-        final String value = (String) row.get(column);
-        return RecordIds.isValid(value) ? new ObjectId(value) : value;
+        return MongoIds.objectIdOrText((String) row.get(column));
     }
 
     private static Date date(final Map<String, Object> row, final String column) {

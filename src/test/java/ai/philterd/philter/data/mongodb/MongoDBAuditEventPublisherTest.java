@@ -15,7 +15,9 @@
  */
 package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.audit.ClientAddress;
+import ai.philterd.philter.audit.StoredAuditEventPublisher;
 import ai.philterd.philter.model.AuditLogEvent;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -35,6 +37,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -120,6 +123,34 @@ class MongoDBAuditEventPublisherTest {
         publisher.auditEvent("req-3", AuditLogEvent.REDACTION_LEDGER_DELETED, MongoIds.newId());
 
         verify(mongoCollection).insertOne(any(Document.class));
+    }
+
+    @Test
+    void aPrincipalOrObjectThatIsNotAnIdIsKeptAsText() {
+        // Converting these to ObjectId threw before the insert's own catch, failing the request being audited.
+        publisher.auditEvent("req-9", AuditLogEvent.REDACTED_FILE_DELETED, "not-an-id",
+                "0f8c1b2e-5d4a-4c3b-9e7f-1a2b3c4d5e6f", null, null);
+
+        final Document document = recorded();
+        assertEquals("not-an-id", document.getString("api_key_id"));
+        assertEquals("0f8c1b2e-5d4a-4c3b-9e7f-1a2b3c4d5e6f", document.getString("associated_object"));
+    }
+
+    @Test
+    void aFailingStoreDoesNotReachTheCaller() {
+        final StoredAuditEventPublisher failing = new StoredAuditEventPublisher() {
+            @Override
+            protected void store(final AuditLogService.AuditEvent event) {
+                throw new IllegalStateException("store failed");
+            }
+
+            @Override
+            public void publishAuditEvent(final Map<String, Object> auditEvent) {
+            }
+        };
+
+        // Auditing cannot break the audited operation.
+        assertDoesNotThrow(() -> failing.auditEvent("req-10", AuditLogEvent.POLICY_CREATED, MongoIds.newId()));
     }
 
     private Document recorded() {

@@ -15,6 +15,7 @@
  */
 package ai.philterd.philter.data.mongodb;
 
+import ai.philterd.philter.data.RecordIds;
 import org.bson.types.ObjectId;
 
 import java.util.Collection;
@@ -32,6 +33,14 @@ public final class MongoIds {
     /** The stored form of an id, or {@code null} for {@code null}. Throws for a value that is not an id. */
     public static ObjectId objectId(final String id) {
         return id == null ? null : new ObjectId(id);
+    }
+
+    /**
+     * The stored form of a value that is usually an id: an {@link ObjectId} when it is one, else the value as is.
+     * For fields such as an audit event's principal, which a caller may fill with something other than an id.
+     */
+    public static Object objectIdOrText(final String value) {
+        return RecordIds.isValid(value) ? new ObjectId(value) : value;
     }
 
     /** The stored form of each id, for an {@code $in} query. */

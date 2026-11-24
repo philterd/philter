@@ -79,8 +79,9 @@ public class MongoDBAuditEventPublisher extends StoredAuditEventPublisher {
         publishAuditEvent(new Document()
                 .append("request_id", event.requestId())
                 .append("event", event.event())
-                .append("api_key_id", MongoIds.objectId(event.apiKeyId()))
-                .append("associated_object", MongoIds.objectId(event.associatedObject()))
+                // Usually ids, but kept as text when not, rather than losing the event.
+                .append("api_key_id", MongoIds.objectIdOrText(event.apiKeyId()))
+                .append("associated_object", MongoIds.objectIdOrText(event.associatedObject()))
                 .append("client_ip_address", event.clientIpAddress())
                 .append("source", event.source())
                 .append("details", event.details())

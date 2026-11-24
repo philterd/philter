@@ -18,6 +18,8 @@ package ai.philterd.philter.audit;
 import ai.philterd.philter.config.AuditConfig;
 import ai.philterd.philter.model.AuditLogEvent;
 import ai.philterd.philter.model.Source;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Date;
 
@@ -28,6 +30,8 @@ import java.util.Date;
  * caller, so auditing cannot break the operation being audited.
  */
 public abstract class StoredAuditEventPublisher implements AuditEventPublisher {
+
+    private static final Logger LOGGER = LogManager.getLogger(StoredAuditEventPublisher.class);
 
     /** Stores one event. Must not throw. */
     protected abstract void store(AuditLogService.AuditEvent event);
@@ -67,8 +71,15 @@ public abstract class StoredAuditEventPublisher implements AuditEventPublisher {
         final String source = requestAddress == null && clientIpAddress != null && !givenAnAddress ? clientIpAddress
                 : address != null ? Source.API.getSource() : Source.SYSTEM.getSource();
 
-        store(new AuditLogService.AuditEvent(new Date(), auditLogEvent == null ? null : auditLogEvent.getAuditLogEvent(),
-                requestId, apiKeyId, associatedObject, address, source, details));
+        final AuditLogService.AuditEvent event = new AuditLogService.AuditEvent(new Date(),
+                auditLogEvent == null ? null : auditLogEvent.getAuditLogEvent(),
+                requestId, apiKeyId, associatedObject, address, source, details);
+        try {
+            store(event);
+        } catch (final RuntimeException ex) {
+            // Each implementation catches its own failures; this holds the rule for any it misses.
+            LOGGER.error("Unable to persist audit event: {}", event, ex);
+        }
 
     }
 

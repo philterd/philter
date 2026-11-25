@@ -65,6 +65,9 @@ public final class PendingDocumentDocuments {
         entity.setClaimToken(document.getString("claim_token"));
         entity.setClaimExpiresAt(document.getDate("claim_expires_at"));
         entity.setReclaimCount(document.getInteger("reclaim_count", 0));
+        entity.setLeftoverCheckRequested(document.getBoolean("leftover_check_requested", false));
+        entity.setLeftovers(document.getString("leftovers"));
+        entity.setEmailReport(document.getString("email_report"));
         return entity;
     }
 
@@ -92,6 +95,9 @@ public final class PendingDocumentDocuments {
         document.put("policy_content_hash", entity.getPolicyContentHash());
         document.put("context_name", entity.getContextName());
         document.put("fairness_key", entity.getFairnessKey());
+        document.put("leftover_check_requested", entity.isLeftoverCheckRequested());
+        document.put("leftovers", entity.getLeftovers());
+        document.put("email_report", entity.getEmailReport());
         document.put("client_ip_address", entity.getClientIpAddress());
         document.put("input_size", entity.getInput() == null ? 0L : (long) entity.getInput().length);
         document.put("effective_hash", entity.getEffectiveHash());

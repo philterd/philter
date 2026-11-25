@@ -138,7 +138,7 @@ class FilterApiControllerTest {
 
     @Test
     void textEndpointReturnsRedactedTextForOwningUser() throws Exception {
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("My name is {{{REDACTED-person}}}.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -160,7 +160,7 @@ class FilterApiControllerTest {
                 "X-Document-Id must be the id the ledger and audit trail were written under");
 
         // The redaction must be attributed to the owning user id, not the API key's own id.
-        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any());
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
     }
 
     @Test
@@ -251,7 +251,7 @@ class FilterApiControllerTest {
     @Test
     void pdfSyncReturnsBytesAndDoesNotEnqueue() throws Exception {
         final byte[] redacted = "redacted-pdf-bytes".getBytes();
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(binaryResult(redacted)));
 
         final var response = mockMvc.perform(post("/api/filter?async=false")
@@ -268,7 +268,7 @@ class FilterApiControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals("4", response.getHeader("X-Philter-Policy-Version"));
 
         // Synchronous path must filter directly (using the owning user id) and never enqueue.
-        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any());
+        verify(redactionService).filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
         verify(pendingDocumentDataService, never()).save(any());
     }
 
@@ -294,7 +294,7 @@ class FilterApiControllerTest {
 
         // Refused before any work is done, so nothing is enqueued or filtered.
         verify(pendingDocumentDataService, never()).save(any());
-        verify(redactionService, never()).filter(any(), any(), any(), any(byte[].class), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(byte[].class), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
     }
 
     @Test
@@ -319,7 +319,7 @@ class FilterApiControllerTest {
         when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenReturn("mock.jwt.token");
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         final var response = mockMvc.perform(post("/api/filter?sign=true")
@@ -338,7 +338,7 @@ class FilterApiControllerTest {
     @Test
     void textEndpointDoesNotAskForSigningWhenTheParameterIsAbsent() throws Exception {
         when(signingService.shouldSign(anyBoolean())).thenReturn(false);
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         mockMvc.perform(post("/api/filter")
@@ -356,7 +356,7 @@ class FilterApiControllerTest {
         when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenReturn("mock.jwt.token");
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -375,7 +375,7 @@ class FilterApiControllerTest {
     @Test
     void textEndpointDoesNotIncludeSignatureHeaderWhenSigningDisabled() throws Exception {
         when(signingService.shouldSign(anyBoolean())).thenReturn(false);
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         final var response = mockMvc.perform(post("/api/filter")
@@ -395,7 +395,7 @@ class FilterApiControllerTest {
         when(signingService.shouldSign(anyBoolean())).thenReturn(true);
         when(signingService.sign(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
                 .thenThrow(new RuntimeException("key unavailable"));
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(textResult("Redacted.")));
 
         mockMvc.perform(post("/api/filter")
@@ -441,7 +441,7 @@ class FilterApiControllerTest {
     @Test
     @org.junit.jupiter.api.DisplayName("A synchronous request naming an unknown policy is a 404, not a server error")
     void syncWithAnUnknownPolicyIsAlsoNotFound() throws Exception {
-        when(redactionService.filter(eq("nosuch"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any()))
+        when(redactionService.filter(eq("nosuch"), eq(userId), eq(""), any(byte[].class), eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new PolicyNotFoundException("The policy 'nosuch' does not exist."));
 
         mockMvc.perform(post("/api/filter")
@@ -457,7 +457,7 @@ class FilterApiControllerTest {
     void missingCustomListReturnsConfigurationErrorWithoutRedactedOutput() throws Exception {
         final String message = "Policy references unavailable custom lists: required-names.";
         when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class),
-                eq(MimeType.TEXT_PLAIN), any()))
+                eq(MimeType.TEXT_PLAIN), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException(message));
         mockMvc.perform(post("/api/filter")
                         .header("Authorization", AUTH_HEADER)
@@ -471,7 +471,7 @@ class FilterApiControllerTest {
     @Test
     void synchronousZipContainsTheRedactedPdf() throws Exception {
         byte[] pdf = "%PDF-1.7 redacted".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(outcome(binaryResult(pdf)));
         var response = mockMvc.perform(post("/api/filter?async=false").header("Authorization", AUTH_HEADER)
                         .contentType(MediaType.APPLICATION_PDF).accept("application/zip").content(validPdf()))
@@ -513,7 +513,7 @@ class FilterApiControllerTest {
 
     @Test
     void downstreamPdfIoFailureRemains500() throws Exception {
-        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any()))
+        when(redactionService.filter(eq("default"), eq(userId), eq(""), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new java.io.IOException("storage unavailable"));
         mockMvc.perform(post("/api/filter").param("async", "false")
                         .header("Authorization", AUTH_HEADER)

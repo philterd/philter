@@ -97,3 +97,47 @@ When a request is selected:
 * The [audit log](../auditing.md) records a `redaction_review_sampled` event with the request ID, the document ID, and the policy name and version.
 
 What happens to a selected request, such as queuing it for a reviewer, is up to your application. The header requests a check; its absence does not mean a result is correct. Detection is probabilistic, so validate results against your own data whether or not a request was selected.
+
+### Leftover Check
+
+A policy can have Philter run detection a second time, over the redacted output, and report anything still detectable. Set `config.review.leftoverCheck`:
+
+```
+{
+   "identifiers": { ... },
+   "config": {
+      "review": {
+         "leftoverCheck": {
+            "mode": "onRequest",
+            "using": "broad"
+         }
+      }
+   }
+}
+```
+
+`mode` decides when the check runs:
+
+* `off` (default): never. A request with `leftover_check=true` is refused with `400 Bad Request`, so a caller is not led to think a check ran.
+* `onRequest`: when the request passes `leftover_check=true` to `/api/filter` or `/api/explain`.
+* `always`: on every request. `leftover_check=false` does not turn it off.
+
+`using` decides what the check detects with. The request cannot choose it.
+
+* `broad` (default): every filter the policy defines, configured as written, plus every other built-in identifier at its defaults. It finds kinds of information the policy does not cover. Identifiers that need configuration (`identifiers`, `sections`, `dictionaries`, `pheyes`, and `person`) run only as the policy defines them, as do the `firstName` and `surname` dictionaries, which match common words at their defaults.
+* `samePolicy`: only the policy's own filters. It confirms the policy took effect, but cannot find a kind of information the policy does not look for.
+
+In the check, the policy's filters run without their own ignore lists and strategy conditions, so a value a condition left unredacted is reported. Values on the policy's top-level `ignored` and `ignoredPatterns` lists, and the replacements the redaction inserted, are not reported. For a PDF redacted with [`page_policy`](../api_and_sdks/api/filtering_api.md), the setting of the policy named by `p` applies. The check never changes the redacted output.
+
+The result:
+
+* The response has the header `X-Philter-Leftovers` with the number of findings, including `0`. When the output has no readable text, such as a PDF whose redacted pages were flattened to images, it is `not-checked` instead: nothing was checked. The header is absent when the check did not run.
+* When there is at least one finding, `X-Philter-Review` includes `leftovers`, alongside `sampled` when the request was also [sampled](#sampling-requests-for-review), for example `X-Philter-Review: sampled, leftovers`.
+* The `/api/explain` body has `leftoverCheck`: whether it was `performed`, the `findingCount`, and each finding's `filterType`, `characterStart` and `characterEnd` in `filteredText`, and `confidence`.
+* An asynchronous document is checked when it is redacted, after the `202 Accepted` response, so the headers are on its [status and download](../api_and_sdks/api/documents_api.md) responses.
+* For an email message, the check covers its redacted fields and its redacted attachments. `X-Philter-Email-Report` includes `unchecked-attachments=N` for redacted attachments whose output could not be read. Kept attachments are not checked. See [Email messages](../redaction/redacting_documents.md#email-messages).
+* The [audit log](../auditing.md) records a `redaction_leftovers_found` event for each request with findings, and the `philter_leftover_checks_total` and `philter_leftover_findings_total` [metrics](../monitoring_and_logging.md) count checks and findings.
+
+No header, log line, audit record, or metric contains a finding's text.
+
+The check runs detection a second time, so it adds latency and load, PhEye models included, and `broad` runs more filters than most policies. It is off unless the policy turns it on. `X-Philter-Leftovers: 0` does not mean the output is free of sensitive information: detection is probabilistic, a `samePolicy` check cannot find a kind of information the policy does not look for, and results still need validating against your own data.

@@ -45,6 +45,8 @@ public enum AuditLogEvent {
     DOCUMENT_REDACTION_COMPLETED("document_redaction_completed", Category.REDACTION_ACTIVITY),
     // Not switchable with redaction auditing: it is the record of which requests were selected for review.
     REDACTION_REVIEW_SAMPLED("redaction_review_sampled"),
+    // Not switchable with redaction auditing: the record of which requests' leftover checks found something.
+    REDACTION_LEFTOVERS_FOUND("redaction_leftovers_found"),
     REDACTED_FILE_DELETED("redacted_file_deleted"),
 
     REDACTION_LEDGER_QUERY("redaction_ledger_query"),

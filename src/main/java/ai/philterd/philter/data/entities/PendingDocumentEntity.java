@@ -63,6 +63,12 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
     private Date claimExpiresAt;
     /** How many times this job has been reclaimed after a worker failed to finish it. */
     private int reclaimCount;
+    /** Whether the request asked for the policy's leftover check (leftover_check=true). */
+    private boolean leftoverCheckRequested;
+    /** The X-Philter-Leftovers value of the completed redaction, or null when the check did not run. */
+    private String leftovers;
+    /** The X-Philter-Email-Report value of a completed email message, or null for other documents. */
+    private String emailReport;
 
     @Override
     public String getId() {
@@ -231,6 +237,30 @@ public class PendingDocumentEntity extends AbstractEncryptedEntity {
 
     public void setReclaimCount(final int reclaimCount) {
         this.reclaimCount = reclaimCount;
+    }
+
+    public boolean isLeftoverCheckRequested() {
+        return leftoverCheckRequested;
+    }
+
+    public void setLeftoverCheckRequested(final boolean leftoverCheckRequested) {
+        this.leftoverCheckRequested = leftoverCheckRequested;
+    }
+
+    public String getLeftovers() {
+        return leftovers;
+    }
+
+    public void setLeftovers(final String leftovers) {
+        this.leftovers = leftovers;
+    }
+
+    public String getEmailReport() {
+        return emailReport;
+    }
+
+    public void setEmailReport(final String emailReport) {
+        this.emailReport = emailReport;
     }
 
     public String getClaimToken() { return claimToken; }

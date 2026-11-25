@@ -88,6 +88,8 @@ public class ExplainApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @io.swagger.v3.oas.annotations.Parameter(description = FilterApiController.LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @RequestBody String body) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
@@ -98,7 +100,9 @@ public class ExplainApiController extends AbstractApiController {
 
         final String userId = apiKeyEntity.getUserId();
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8),
+                MimeType.TEXT_PLAIN, filename,
+                ai.philterd.phileas.services.filters.filtering.FilterOptions.defaults().withLeftoverCheck(leftoverCheck));
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         // Serialize the full filter result (filteredText, context, explanation, ...) to preserve the
@@ -116,7 +120,7 @@ public class ExplainApiController extends AbstractApiController {
         final String responseBody = gson.toJson(json);
         final HttpHeaders headers = new HttpHeaders();
         headers.set(FilterApiController.DOCUMENT_ID_HEADER, documentId);
-        FilterApiController.addReviewHeader(headers, outcome);
+        FilterApiController.addResultHeaders(headers, outcome);
         if (signingService.shouldSign(sign)) {
             headers.set(SigningService.SIGNATURE_HEADER, signingService.sign(
                     responseBody,

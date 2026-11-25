@@ -171,7 +171,9 @@ public class RedactionWorker {
                         if (!pendingDocumentDataService.beginPublication(job.getId(), job.getClaimToken())) {
                             throw new IllegalStateException("Redaction job claim expired or was superseded.");
                         }
-                    }
+                    },
+                    ai.philterd.phileas.services.filters.filtering.FilterOptions.defaults()
+                            .withLeftoverCheck(job.isLeftoverCheckRequested())
             ).result();
 
             final byte[] output;
@@ -181,7 +183,10 @@ public class RedactionWorker {
                 throw new IllegalStateException("Async worker received non-binary filter result for document " + job.getDocumentId());
             }
 
-            if (!pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), job.getClaimToken(), output)) {
+            // Returned on the job's status and download responses, as a synchronous response carries them.
+            final PendingDocumentDataService.ResultReport report = new PendingDocumentDataService.ResultReport(
+                    ResultHeaders.leftovers(result), ResultHeaders.emailReport(result));
+            if (!pendingDocumentDataService.markComplete(job.getId(), job.getUserId(), job.getClaimToken(), output, report)) {
                 LOGGER.warn("Discarding stale completion for document {}", job.getDocumentId());
                 return;
             }

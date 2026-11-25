@@ -89,6 +89,9 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
         entity.setClaimToken(row.string("claim_token"));
         entity.setClaimExpiresAt(row.date("claim_expires_at"));
         entity.setReclaimCount(row.intValue("reclaim_count"));
+        entity.setLeftoverCheckRequested(row.intValue("leftover_check_requested") != 0);
+        entity.setLeftovers(row.string("leftovers"));
+        entity.setEmailReport(row.string("email_report"));
         return entity;
     }
 
@@ -154,8 +157,9 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
                     + "output_mime_type, policy_name, policy_version, policy_content_hash, context_name, client_ip_address, "
                     + "input_size, effective_hash, effective_json, effective_key, status, error_message, input, "
                     + "input_encrypted_key, output, output_encrypted_key, submitted_at, started_at, completed_at, claimed_by, "
-                    + "claimed_at, claim_token, claim_expires_at, reclaim_count, fairness_round, fairness_key) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    + "claimed_at, claim_token, claim_expires_at, reclaim_count, fairness_round, fairness_key, "
+                    + "leftover_check_requested, leftovers, email_report) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     id, entity.getUserId(), entity.getDocumentId(), entity.getFileName(), entity.getInputMimeType(),
                     entity.getOutputMimeType(), entity.getPolicyName(), entity.getPolicyVersion(), entity.getPolicyContentHash(),
                     entity.getContextName(), entity.getClientIpAddress(),
@@ -165,7 +169,8 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
                     input == null ? null : input.key(), output == null ? null : output.ciphertext(),
                     output == null ? null : output.key(), entity.getSubmittedAt(), entity.getStartedAt(),
                     entity.getCompletedAt(), entity.getClaimedBy(), entity.getClaimedAt(), entity.getClaimToken(),
-                    entity.getClaimExpiresAt(), entity.getReclaimCount(), plan.round(), entity.getFairnessKey());
+                    entity.getClaimExpiresAt(), entity.getReclaimCount(), plan.round(), entity.getFairnessKey(),
+                    entity.isLeftoverCheckRequested() ? 1 : 0, entity.getLeftovers(), entity.getEmailReport());
         });
         return id;
     }
@@ -263,12 +268,14 @@ public class SqlitePendingDocumentDataService extends StoredPendingDocumentDataS
 
     @Override
     protected boolean complete(final String id, final String userId, final String claimToken,
-                               final SecretFields.SealedBytes output, final Date now) {
+                               final SecretFields.SealedBytes output, final ResultReport report, final Date now) {
         return database.write(connection -> Sql.update(connection, "UPDATE pending_documents SET status = ?, output = ?, "
-                + "output_encrypted_key = ?, completed_at = ?, notification_pending = 1, input = NULL, input_encrypted_key = NULL "
+                + "output_encrypted_key = ?, completed_at = ?, notification_pending = 1, input = NULL, input_encrypted_key = NULL, "
+                + "leftovers = ?, email_report = ? "
                 + "WHERE " + OWNED + " AND user_id = ? AND publication_started_at IS NOT NULL",
                 PendingDocumentEntity.STATUS_COMPLETE, output == null ? null : output.ciphertext(),
-                output == null ? null : output.key(), now, id, claimToken, userId)) == 1;
+                output == null ? null : output.key(), now, report.leftovers(), report.emailReport(),
+                id, claimToken, userId)) == 1;
     }
 
     @Override

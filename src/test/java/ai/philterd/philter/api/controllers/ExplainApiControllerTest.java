@@ -106,7 +106,7 @@ class ExplainApiControllerTest {
                 "{{{REDACTED-person}}} was here", "none", 0,
                 new Explanation(List.of(span), Collections.emptyList()), Collections.emptyList(), 5);
 
-        when(redactionService.filter(eq("default"), any(), eq(""), any(), any(), any()))
+        when(redactionService.filter(eq("default"), any(), eq(""), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 9, "policyhash")));
 
         final var response = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
@@ -135,7 +135,7 @@ class ExplainApiControllerTest {
     private void stubFilter() throws Exception {
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
     }
 
@@ -177,7 +177,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
@@ -197,7 +197,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         final var response = mockMvc.perform(post("/api/explain")
@@ -219,7 +219,7 @@ class ExplainApiControllerTest {
 
         final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
 
         mockMvc.perform(post("/api/explain")

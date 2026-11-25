@@ -64,7 +64,7 @@ class RedactionWorkerTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient().when(pendingDocumentDataService.beginPublication(any(), any())).thenReturn(true);
-        org.mockito.Mockito.lenient().when(pendingDocumentDataService.markComplete(any(), any(), any(), any())).thenReturn(true);
+        org.mockito.Mockito.lenient().when(pendingDocumentDataService.markComplete(any(), any(), any(), any(), any())).thenReturn(true);
         org.mockito.Mockito.lenient().when(pendingDocumentDataService.markFailed(any(), any(), any())).thenReturn(true);
         worker = new RedactionWorker(pendingDocumentDataService, redactionService,
                 userService, webhookDeliveryDataService, policyVersionDataService, new Gson());
@@ -99,8 +99,8 @@ class RedactionWorkerTest {
 
         worker.poll();
 
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
         verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
     }
 
@@ -110,13 +110,13 @@ class RedactionWorkerTest {
         final byte[] redacted = "redacted-pdf".getBytes();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(eq("default"), eq(job.getUserId()), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(), any(), any()))
+        when(redactionService.filter(eq("default"), eq(job.getUserId()), eq("none"), any(byte[].class), eq(MimeType.APPLICATION_PDF), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(binaryResult(redacted)); });
 
         worker.poll();
 
         final ArgumentCaptor<byte[]> outputCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), eq(job.getClaimToken()), outputCaptor.capture());
+        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), eq(job.getClaimToken()), outputCaptor.capture(), any());
         assertEquals("redacted-pdf", new String(outputCaptor.getValue()));
         verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
     }
@@ -126,7 +126,7 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new ai.philterd.phileas.services.pdf.PdfLimitExceededException("The PDF has 3 pages, more than the limit of 2."));
 
         try (LogCapture log = new LogCapture()) {
@@ -146,13 +146,13 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new InterruptedException());
 
         try {
             worker.poll();
             verify(pendingDocumentDataService, never()).markFailed(any(), any(), any());
-            verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+            verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
         } finally {
             Thread.interrupted();
         }
@@ -163,7 +163,7 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new RuntimeException("boom"));
 
         try (LogCapture log = new LogCapture()) {
@@ -174,7 +174,7 @@ class RedactionWorkerTest {
         }
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), eq(RedactionWorker.GENERIC_FAILURE));
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -186,12 +186,12 @@ class RedactionWorkerTest {
                 new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 0L);
 
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(textResult); });
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class))).thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(textResult); });
 
         worker.poll();
 
         verify(pendingDocumentDataService).markFailed(eq(job.getId()), eq(job.getClaimToken()), any());
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -264,13 +264,13 @@ class RedactionWorkerTest {
         final PendingDocumentEntity job = pdfJob();
         final String message = "Policy references unavailable custom lists: required-names.";
         when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException(message));
 
         worker.poll();
 
         verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(), message);
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -282,7 +282,7 @@ class RedactionWorkerTest {
         // The snapshot hash is internal, so it goes to the log and not to the job's status.
         verify(pendingDocumentDataService).markFailed(job.getId(), job.getClaimToken(), RedactionWorker.GENERIC_FAILURE);
         org.mockito.Mockito.verifyNoInteractions(redactionService);
-        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any());
+        verify(pendingDocumentDataService, never()).markComplete(any(), any(), any(), any(), any());
     }
 
     @Test

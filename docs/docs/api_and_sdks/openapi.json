@@ -3891,6 +3891,24 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Email-Report": {
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Leftovers": {
+                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Review": {
+                "description": "leftovers when the document's leftover check found something.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-Id": {
                 "$ref": "#/components/headers/X-Request-Id"
               }
@@ -4097,6 +4115,24 @@
               }
             },
             "headers": {
+              "X-Philter-Email-Report": {
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Leftovers": {
+                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Review": {
+                "description": "leftovers when the document's leftover check found something.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-Id": {
                 "$ref": "#/components/headers/X-Request-Id"
               }
@@ -4277,6 +4313,16 @@
               "type": "boolean",
               "default": false
             }
+          },
+          {
+            "description": "Optional, defaults to false. Requests the policy's leftover check (config.review.leftoverCheck) when its mode is onRequest. With mode always every request is checked and leftover_check=false does not change that; with mode off, leftover_check=true is refused with 400. The result is in X-Philter-Leftovers, or for a queued document on its status and download responses.",
+            "name": "leftover_check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
           }
         ],
         "requestBody": {
@@ -4320,6 +4366,48 @@
                     "filteredText": {
                       "type": "string"
                     },
+                    "leftoverCheck": {
+                      "description": "Present when the policy's leftover check ran. Each finding's position is in filteredText. No finding carries its text.",
+                      "type": "object",
+                      "properties": {
+                        "findingCount": {
+                          "type": "integer",
+                          "format": "int32"
+                        },
+                        "findings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "characterEnd": {
+                                "type": "integer",
+                                "format": "int32"
+                              },
+                              "characterStart": {
+                                "type": "integer",
+                                "format": "int32"
+                              },
+                              "classification": {
+                                "type": "string"
+                              },
+                              "confidence": {
+                                "type": "number"
+                              },
+                              "filterType": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "performed": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "description": "Why the check did not run: unreadableOutput.",
+                          "type": "string"
+                        }
+                      }
+                    },
                     "piece": {
                       "type": "integer",
                       "format": "int32"
@@ -4351,8 +4439,14 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Leftovers": {
+                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Philter-Review": {
-                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
+                "description": "The reasons the request is flagged for human review, separated by \", \": sampled when the policy's config.review.samplingRate selected it, and leftovers when the policy's leftover check found something. Absent when neither applies. A queued document is selected when it is accepted, so the 202 reports sampled; leftovers is on its status and download responses. A response without it has not been checked by anyone: it still needs validating.",
                 "schema": {
                   "type": "string"
                 }
@@ -4567,6 +4661,16 @@
             }
           },
           {
+            "description": "Optional, defaults to false. Requests the policy's leftover check (config.review.leftoverCheck) when its mode is onRequest. With mode always every request is checked and leftover_check=false does not change that; with mode off, leftover_check=true is refused with 400. The result is in X-Philter-Leftovers, or for a queued document on its status and download responses.",
+            "name": "leftover_check",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "async",
             "in": "query",
             "required": false,
@@ -4684,6 +4788,18 @@
                   "type": "string"
                 }
               },
+              "X-Philter-Email-Report": {
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Philter-Leftovers": {
+                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Philter-Page-Policies": {
                 "description": "PDF only, when page_policy is given: the policy and version that redacted each page set, as pages=policy@version separated by \"; \".",
                 "schema": {
@@ -4706,7 +4822,7 @@
                 }
               },
               "X-Philter-Review": {
-                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
+                "description": "The reasons the request is flagged for human review, separated by \", \": sampled when the policy's config.review.samplingRate selected it, and leftovers when the policy's leftover check found something. Absent when neither applies. A queued document is selected when it is accepted, so the 202 reports sampled; leftovers is on its status and download responses. A response without it has not been checked by anyone: it still needs validating.",
                 "schema": {
                   "type": "string"
                 }
@@ -4769,7 +4885,7 @@
                 }
               },
               "X-Philter-Review": {
-                "description": "sampled when the policy's config.review.samplingRate selected the request for human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 reports it. A response without it has not been checked: it still needs validating.",
+                "description": "The reasons the request is flagged for human review, separated by \", \": sampled when the policy's config.review.samplingRate selected it, and leftovers when the policy's leftover check found something. Absent when neither applies. A queued document is selected when it is accepted, so the 202 reports sampled; leftovers is on its status and download responses. A response without it has not been checked by anyone: it still needs validating.",
                 "schema": {
                   "type": "string"
                 }

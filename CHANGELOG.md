@@ -20,6 +20,17 @@ Uses Phileas 4.6.0.
   declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
   `OFFICE_MAX_ENTRIES` limit what one may decompress to. Author names and the creator, last modified by,
   company, and manager properties are cleared whatever the policy.
+- **Leftover check:** a policy's `config.review.leftoverCheck` runs detection again over the redacted output
+  and reports what is still detectable ([#218](https://github.com/philterd/philter/issues/218)). The
+  `leftover_check` parameter on `/api/filter` and `/api/explain` requests it under mode `onRequest`, and is
+  refused with `400` under mode `off`. `X-Philter-Leftovers` reports the number of findings, or `not-checked`
+  when the output has no readable text, and `X-Philter-Review` includes `leftovers` when there are findings,
+  as in `sampled, leftovers`. `/api/explain` returns `leftoverCheck`. A queued document's result is on its
+  status and download responses. Findings are recorded as the audit event `redaction_leftovers_found` and
+  counted by `philter_leftover_checks_total` and `philter_leftover_findings_total`, never with their text.
+  Adds a database migration (schema version 3).
+- **Email report:** email responses carry `X-Philter-Email-Report`, counting the attachments and inline
+  images kept uninspected, attachments removed under `attachments: redact`, and dropped signatures.
 - **Email redaction:** `POST /api/filter` accepts email messages, `message/rfc822` (`.eml`) and
   `application/vnd.ms-outlook` (`.msg`), and returns `message/rfc822`, synchronously or queued
   ([#220](https://github.com/philterd/philter/issues/220)). Headers and text bodies are redacted with the

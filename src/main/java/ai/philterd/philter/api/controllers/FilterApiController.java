@@ -21,6 +21,8 @@ import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.services.filtering.AppliedPolicy;
 import ai.philterd.philter.services.policies.PolicyNotFoundException;
 import ai.philterd.philter.services.filtering.RedactionOutcome;
+import ai.philterd.philter.services.filtering.ResultHeaders;
+import ai.philterd.phileas.services.filters.filtering.FilterOptions;
 import ai.philterd.philter.services.signing.SigningService;
 import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
@@ -87,8 +89,9 @@ public class FilterApiController extends AbstractApiController {
     /** The policy and version that redacted each page set named with page_policy: {@code pages=policy@version; ...}. */
     public static final String PAGE_POLICIES_HEADER = "X-Philter-Page-Policies";
     /**
-     * Present, as {@value #REVIEW_SAMPLED}, only when the policy's config.review.samplingRate selected the request. A
-     * queued document is drawn for when it is accepted, so the 202 carries it.
+     * The reasons a request is flagged for review, separated by ", ": {@value #REVIEW_SAMPLED} when the policy's
+     * config.review.samplingRate selected it, and leftovers when its leftover check found something. A queued document
+     * is drawn for when it is accepted, so the 202 carries sampled; leftovers is on its status and download responses.
      */
     public static final String REVIEW_HEADER = "X-Philter-Review";
     public static final String REVIEW_SAMPLED = "sampled";
@@ -112,6 +115,13 @@ public class FilterApiController extends AbstractApiController {
             "Pass sign=true to request a signature when the deployment has not enabled signing. The "
                     + "admin setting is a floor: with it on every response is signed and sign=false "
                     + "does not change that.";
+
+    /** Shared with ExplainApiController and documented the same way. */
+    public static final String LEFTOVER_CHECK_PARAMETER =
+            "Optional, defaults to false. Requests the policy's leftover check (config.review.leftoverCheck) when its "
+                    + "mode is onRequest. With mode always every request is checked and leftover_check=false does not "
+                    + "change that; with mode off, leftover_check=true is refused with 400. The result is in "
+                    + "X-Philter-Leftovers, or for a queued document on its status and download responses.";
 
     private static final String FAIRNESS_KEY_PARAMETER =
             "Optional, asynchronous requests only. Documents queued by one account with different fairness keys take "
@@ -157,6 +167,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
@@ -180,12 +192,13 @@ public class FilterApiController extends AbstractApiController {
 
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, "application/zip", policyName, context, filename,
-                    fairnessKey, pagePolicies);
+                    fairnessKey, pagePolicies, leftoverCheck);
         }
 
         final RedactionOutcome outcome = pagePolicies.isEmpty()
-                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename)
-                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies);
+                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, options(leftoverCheck))
+                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies,
+                        options(leftoverCheck));
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -215,6 +228,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
@@ -238,12 +253,13 @@ public class FilterApiController extends AbstractApiController {
 
         if (async) {
             return enqueueBinary(userId, body, MimeType.APPLICATION_PDF, MediaType.APPLICATION_PDF_VALUE, policyName, context, filename,
-                    fairnessKey, pagePolicies);
+                    fairnessKey, pagePolicies, leftoverCheck);
         }
 
         final RedactionOutcome outcome = pagePolicies.isEmpty()
-                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename)
-                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies);
+                ? redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, options(leftoverCheck))
+                : redactionService.filter(policyName, userId, context, body, MimeType.APPLICATION_PDF, filename, pagePolicies,
+                        options(leftoverCheck));
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -279,13 +295,15 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded Word document. async={}", async);
-        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_DOCX);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_DOCX, leftoverCheck);
 
     }
 
@@ -309,13 +327,15 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
             @RequestBody byte[] body) throws Exception {
 
         LOGGER.info("Received uploaded Excel workbook. async={}", async);
-        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_XLSX);
+        return filterOffice(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body, MimeType.APPLICATION_XLSX, leftoverCheck);
 
     }
 
@@ -345,6 +365,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
@@ -352,7 +374,7 @@ public class FilterApiController extends AbstractApiController {
 
         LOGGER.info("Received uploaded email message. async={}", async);
         return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
-                MimeType.MESSAGE_RFC822, EML);
+                MimeType.MESSAGE_RFC822, EML, leftoverCheck);
 
     }
 
@@ -377,6 +399,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "async", defaultValue = "true") boolean async,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             @Parameter(description = FAIRNESS_KEY_PARAMETER)
             @RequestParam(value = "fairness_key", required = false) String fairnessKey,
             final HttpServletRequest request,
@@ -384,16 +408,17 @@ public class FilterApiController extends AbstractApiController {
 
         LOGGER.info("Received uploaded Outlook message. async={}", async);
         return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
-                MimeType.APPLICATION_VND_MS_OUTLOOK, EML);
+                MimeType.APPLICATION_VND_MS_OUTLOOK, EML, leftoverCheck);
 
     }
 
     private ResponseEntity<byte[]> filterOffice(final String authorizationHeader, final String context, final String policyName,
                                                 final boolean async, final String filename, final boolean sign,
                                                 final String fairnessKey, final HttpServletRequest request,
-                                                final byte[] body, final MimeType mimeType) throws Exception {
+                                                final byte[] body, final MimeType mimeType,
+                                                final boolean leftoverCheck) throws Exception {
         return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
-                mimeType, mimeType.getValue());
+                mimeType, mimeType.getValue(), leftoverCheck);
     }
 
     /** A Word, Excel, or email document, returned as {@code outputMimeType}. */
@@ -401,7 +426,7 @@ public class FilterApiController extends AbstractApiController {
                                                   final boolean async, final String filename, final boolean sign,
                                                   final String fairnessKey, final HttpServletRequest request,
                                                   final byte[] body, final MimeType mimeType,
-                                                  final String outputMimeType) throws Exception {
+                                                  final String outputMimeType, final boolean leftoverCheck) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -417,10 +442,12 @@ public class FilterApiController extends AbstractApiController {
         final String userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, mimeType, outputMimeType, policyName, context, filename, fairnessKey, List.of());
+            return enqueueBinary(userId, body, mimeType, outputMimeType, policyName, context, filename, fairnessKey, List.of(),
+                    leftoverCheck);
         }
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, mimeType, filename);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, mimeType, filename,
+                options(leftoverCheck));
         final BinaryDocumentFilterResult binaryDocumentFilterResult = (BinaryDocumentFilterResult) outcome.result();
 
         return ResponseEntity.status(HttpStatus.OK)
@@ -454,6 +481,8 @@ public class FilterApiController extends AbstractApiController {
             @RequestParam(value = "p", defaultValue = "default") String policyName,
             @RequestParam(value = "filename", required = false) String filename,
             @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
             final HttpServletRequest request,
             @RequestBody String body) throws Exception {
 
@@ -467,7 +496,8 @@ public class FilterApiController extends AbstractApiController {
 
         final String userId = apiKeyEntity.getUserId();
 
-        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8), MimeType.TEXT_PLAIN, filename);
+        final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body.getBytes(StandardCharsets.UTF_8),
+                MimeType.TEXT_PLAIN, filename, options(leftoverCheck));
         final TextFilterResult textFilterResult = (TextFilterResult) outcome.result();
 
         // The id it was recorded under, so GET /api/ledger/{documentId} resolves it.
@@ -526,7 +556,8 @@ public class FilterApiController extends AbstractApiController {
     private ResponseEntity<byte[]> enqueueBinary(final String userId, final byte[] body, final MimeType inputMimeType,
                                                  final String outputMimeType, final String policyName, final String contextName,
                                                  final String filename, final String fairnessKey,
-                                                 final List<PagePolicyRequest> pagePolicies) throws PolicyNotFoundException {
+                                                 final List<PagePolicyRequest> pagePolicies,
+                                                 final boolean leftoverCheck) throws PolicyNotFoundException {
 
         if (inputMimeType == MimeType.APPLICATION_PDF) {
             // Page sets are checked against the document here, so a mistake is refused rather than failing the job.
@@ -588,6 +619,9 @@ public class FilterApiController extends AbstractApiController {
         final String effectiveJson = redactionService.captureEffectiveConfiguration(userId, policyEntity, contextName, pageCaptures);
         entity.setEffectiveJson(effectiveJson);
         entity.setEffectiveHash(PolicyVersionDataService.contentHash(effectiveJson));
+        // Refused now, against the captured policy, rather than failing the job later.
+        redactionService.refuseLeftoverCheckIfOff(effectiveJson, options(leftoverCheck));
+        entity.setLeftoverCheckRequested(leftoverCheck);
         // Drawn now, with the captured policy, so this response can report it; the worker's later draw is not used.
         final boolean reviewSampled = redactionService.selectForReview(effectiveJson);
         pendingDocumentDataService.save(entity);
@@ -633,15 +667,35 @@ public class FilterApiController extends AbstractApiController {
         if (outcome.pagePolicies() != null && !outcome.pagePolicies().isEmpty()) {
             headers.add(PAGE_POLICIES_HEADER, PagePolicyRequest.describe(outcome.pagePolicies()));
         }
-        addReviewHeader(headers, outcome);
+        addResultHeaders(headers, outcome);
         return headers;
     }
 
-    /** Adds {@link #REVIEW_HEADER} when the policy's sampling rate selected the request; otherwise nothing. */
-    static void addReviewHeader(final HttpHeaders headers, final RedactionOutcome outcome) {
-        if (outcome.result() != null && outcome.result().isReviewSampled()) {
-            headers.set(REVIEW_HEADER, REVIEW_SAMPLED);
+    /**
+     * Adds what the redaction found beyond its output: {@link ResultHeaders#LEFTOVERS} when the leftover check ran,
+     * {@link ResultHeaders#EMAIL_REPORT} for an email message, and {@link #REVIEW_HEADER} with each reason that
+     * applies, such as {@code sampled, leftovers}.
+     */
+    static void addResultHeaders(final HttpHeaders headers, final RedactionOutcome outcome) {
+        if (outcome.result() == null) {
+            return;
         }
+        final String leftovers = ResultHeaders.leftovers(outcome.result());
+        if (leftovers != null) {
+            headers.set(ResultHeaders.LEFTOVERS, leftovers);
+        }
+        final String emailReport = ResultHeaders.emailReport(outcome.result());
+        if (emailReport != null) {
+            headers.set(ResultHeaders.EMAIL_REPORT, emailReport);
+        }
+        final String review = ResultHeaders.review(outcome.result().isReviewSampled(), ResultHeaders.found(leftovers));
+        if (review != null) {
+            headers.set(REVIEW_HEADER, review);
+        }
+    }
+
+    private static FilterOptions options(final boolean leftoverCheck) {
+        return FilterOptions.defaults().withLeftoverCheck(leftoverCheck);
     }
 
     /** Builds the response headers that report the applied policy name, version, and content hash. */

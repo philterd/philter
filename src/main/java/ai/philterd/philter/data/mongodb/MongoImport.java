@@ -414,6 +414,9 @@ public final class MongoImport implements AutoCloseable {
                     .append("reclaim_count", int32(row, "reclaim_count"))
                     .append("fairness_round", int64(row, "fairness_round"))
                     .append("fairness_key", text(row, "fairness_key"))
+                    .append("leftover_check_requested", bool(row, "leftover_check_requested"))
+                    .append("leftovers", text(row, "leftovers"))
+                    .append("email_report", text(row, "email_report"))
                     .append("notification_pending", bool(row, "notification_pending"));
             // Left out, not null, when unset: claims and publication match on the field being absent.
             putIfPresent(job, "publication_started_at", date(row, "publication_started_at"));

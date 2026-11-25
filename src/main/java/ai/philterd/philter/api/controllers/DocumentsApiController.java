@@ -44,6 +44,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import ai.philterd.philter.services.filtering.ResultHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -189,7 +190,7 @@ public class DocumentsApiController extends AbstractApiController {
         response.setEffectiveConfigurationHash(entity.getEffectiveHash());
         response.setPolicy(entity.getPolicyName(), entity.getPolicyVersion(), entity.getPolicyContentHash());
         response.setError(entity.getErrorMessage());
-        return new ResponseEntity<>(gson.toJson(response), HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).headers(resultHeaders(entity)).body(gson.toJson(response));
 
     }
 
@@ -242,9 +243,33 @@ public class DocumentsApiController extends AbstractApiController {
                 "documentId: " + AuditDetails.quote(documentId));
 
         return ResponseEntity.status(HttpStatus.OK)
+                .headers(resultHeaders(entity))
                 .contentType(mediaType)
                 .body(entity.getOutput());
 
+    }
+
+    /**
+     * What a completed document's redaction reported, as a synchronous response carries it: the leftover check, the
+     * email report, and X-Philter-Review: leftovers when the check found something. The review selection is on the
+     * 202 that accepted the document, not repeated here.
+     */
+    static HttpHeaders resultHeaders(final PendingDocumentEntity entity) {
+        final HttpHeaders headers = new HttpHeaders();
+        if (!PendingDocumentEntity.STATUS_COMPLETE.equals(entity.getStatus())) {
+            return headers;
+        }
+        if (entity.getLeftovers() != null) {
+            headers.set(ResultHeaders.LEFTOVERS, entity.getLeftovers());
+        }
+        if (entity.getEmailReport() != null) {
+            headers.set(ResultHeaders.EMAIL_REPORT, entity.getEmailReport());
+        }
+        final String review = ResultHeaders.review(false, ResultHeaders.found(entity.getLeftovers()));
+        if (review != null) {
+            headers.set(FilterApiController.REVIEW_HEADER, review);
+        }
+        return headers;
     }
 
     @Operation(summary = "Delete an async redaction record.")

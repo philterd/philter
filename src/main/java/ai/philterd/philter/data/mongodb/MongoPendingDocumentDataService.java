@@ -291,11 +291,13 @@ public class MongoPendingDocumentDataService extends StoredPendingDocumentDataSe
 
     @Override
     protected boolean complete(final String id, final String userId, final String claimToken,
-                               final SecretFields.SealedBytes output, final Date now) {
+                               final SecretFields.SealedBytes output, final ResultReport report, final Date now) {
         final Bson query = Filters.and(ownedClaim(id, claimToken), Filters.eq("user_id", MongoIds.objectId(userId)),
                 Filters.exists("publication_started_at", true));
         final Bson update = Updates.combine(
                 Updates.set("status", PendingDocumentEntity.STATUS_COMPLETE),
+                Updates.set("leftovers", report.leftovers()),
+                Updates.set("email_report", report.emailReport()),
                 Updates.set("output", new Binary(output.ciphertext())),
                 Updates.set("output_encrypted_key", output.key()),
                 Updates.set("completed_at", now),

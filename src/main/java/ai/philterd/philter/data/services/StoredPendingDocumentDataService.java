@@ -131,7 +131,7 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
      * notification pending.
      */
     protected abstract boolean complete(final String id, final String userId, final String claimToken,
-            final SecretFields.SealedBytes output, final Date now);
+            final SecretFields.SealedBytes output, final ResultReport report, final Date now);
 
     /**
      * Fails a document under this token, while it is publishing or its claim is live: records the error, drops
@@ -199,9 +199,11 @@ public abstract class StoredPendingDocumentDataService implements PendingDocumen
     }
 
     @Override
-    public boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output) {
+    public boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output,
+                                final ResultReport report) {
         requireToken(claimToken);
-        return complete(id, userId, claimToken, SecretFields.sealBytes(encryptionService, output, userId), new Date());
+        return complete(id, userId, claimToken, SecretFields.sealBytes(encryptionService, output, userId),
+                report == null ? ResultReport.NONE : report, new Date());
     }
 
     @Override

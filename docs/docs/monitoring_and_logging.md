@@ -12,7 +12,7 @@ Philter publishes metrics at:
 
 Point your Prometheus scraper at this endpoint (for example, `https://your-philter-endpoint:8080/actuator/prometheus`). The Docker image serves HTTPS by default; use `http` when `SSL_ENABLED=false` (see [TLS](settings.md#tls)). With the generated self-signed certificate, the scraper must skip verification or trust that certificate. When Philter [requires client certificates](settings.md#client-certificates-mutual-tls), the scraper must present one too.
 
-The actuator endpoints are served **without authentication**, so a scraper needs no API key. Only `health` and `prometheus` are exposed, and the metrics carry low-cardinality labels only (`filter_type`, `method`, `status`), never a user, context, policy name, or any redacted value. They do reveal redaction volume, so restrict `/actuator/**` to your monitoring network at the firewall or ingress if that is sensitive in your deployment.
+The actuator endpoints are served **without authentication**, so a scraper needs no API key. Only `health` and `prometheus` are exposed, and the metrics carry low-cardinality labels only (`filter_type`, `method`, `status`, `outcome`), never a user, context, policy name, or any redacted value. They do reveal redaction volume, so restrict `/actuator/**` to your monitoring network at the firewall or ingress if that is sensitive in your deployment.
 
 ## Captured Metrics
 
@@ -22,6 +22,8 @@ Philter exposes the following counters and gauges, in addition to the standard J
 |--------|-------------|
 | `philter_redactions_total` | Total redactions performed, labeled by `filter_type`. |
 | `philter_tokens_total` | Total tokens processed during redaction. |
+| `philter_leftover_checks_total` | [Leftover checks](policies/filter_policies.md#leftover-check) run, labeled by `outcome`: `none_found`, `found`, or `not_checked` (the output had no readable text). |
+| `philter_leftover_findings_total` | Values the leftover check found still detectable, labeled by `filter_type`. |
 | `philter_api_requests_total` | Total API requests, labeled by `method` and `status`. |
 | `philter_async_queue_jobs` | Gauge: asynchronous document jobs currently pending or processing, across all accounts. |
 | `philter_async_queue_bytes` | Gauge: total input bytes of those jobs. |

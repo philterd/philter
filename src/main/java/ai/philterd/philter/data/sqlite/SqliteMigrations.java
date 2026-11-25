@@ -27,7 +27,7 @@ final class SqliteMigrations {
 
     static List<Migration> all(final SqliteDatabase database) {
         // Version 1 is the layout Philter 4.0 ships with (SqliteSchema).
-        return List.of(new SqliteContextValuesMigration(database));
+        return List.of(new SqliteContextValuesMigration(database), new SqliteLeftoverReportMigration(database));
     }
 
 }

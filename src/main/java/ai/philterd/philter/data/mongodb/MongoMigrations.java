@@ -31,7 +31,7 @@ final class MongoMigrations {
 
     static List<Migration> all(final MongoClient mongoClient) {
         // Version 1 is the layout Philter 4.0 shipped with.
-        return List.of(new MongoContextValuesMigration());
+        return List.of(new MongoContextValuesMigration(), new MongoLeftoverReportMigration());
     }
 
 }

@@ -20,9 +20,22 @@ import org.springframework.context.annotation.Configuration;
 public class ApiDocumentationConfig {
     private static final String SIGNATURE = ai.philterd.philter.services.signing.SigningService.SIGNATURE_HEADER;
     private static final String SIGNED = "An ES256 JWT binding the SHA-256 hash of the response body. Present when output signing is enabled or the request asked for it with sign=true; verify it with GET /api/signing-key.";
-    private static final String REVIEW = "sampled when the policy's config.review.samplingRate selected the request for "
-            + "human spot review, and absent otherwise. A queued document is selected when it is accepted, so the 202 "
-            + "reports it. A response without it has not been checked: it still needs validating.";
+    private static final String REVIEW = "The reasons the request is flagged for human review, separated by \", \": sampled "
+            + "when the policy's config.review.samplingRate selected it, and leftovers when the policy's leftover check found "
+            + "something. Absent when neither applies. A queued document is selected when it is accepted, so the 202 reports "
+            + "sampled; leftovers is on its status and download responses. A response without it has not been checked by "
+            + "anyone: it still needs validating.";
+    private static final String LEFTOVERS = ai.philterd.philter.services.filtering.ResultHeaders.LEFTOVERS;
+    private static final String LEFTOVERS_DESCRIPTION = "Present when the policy's leftover check ran: the number of "
+            + "values still detectable in the redacted output, or not-checked when the output has no readable text, such "
+            + "as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive "
+            + "information. Never contains a finding's text.";
+    private static final String EMAIL_REPORT = ai.philterd.philter.services.filtering.ResultHeaders.EMAIL_REPORT;
+    private static final String EMAIL_REPORT_DESCRIPTION = "Email messages only: counts of attachments and inline images "
+            + "kept without being inspected, attachments removed under attachments: redact because they could not be "
+            + "redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, "
+            + "removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check "
+            + "ran. No filenames.";
 
     @Bean
     public OpenApiCustomizer apiWireContracts() {
@@ -101,10 +114,19 @@ public class ApiDocumentationConfig {
                                     "identifiedSpans", new ArraySchema().items(spanRef)),
                             "tokens", new IntegerSchema(), "policyName", new StringSchema(),
                             "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema(),
-                            "reviewSampled", new io.swagger.v3.oas.models.media.BooleanSchema())));
+                            "reviewSampled", new io.swagger.v3.oas.models.media.BooleanSchema(),
+                            "leftoverCheck", object("performed", new BooleanSchema(), "reason", new StringSchema()
+                                            .description("Why the check did not run: unreadableOutput."),
+                                    "findingCount", new IntegerSchema(),
+                                    "findings", new ArraySchema().items(object("filterType", new StringSchema(),
+                                            "classification", new StringSchema(), "characterStart", new IntegerSchema(),
+                                            "characterEnd", new IntegerSchema(), "confidence", new NumberSchema())))
+                                    .description("Present when the policy's leftover check ran. Each finding's position "
+                                            + "is in filteredText. No finding carries its text."))));
             final Operation explain = op(api, "/api/explain", "post");
             headers(explain, "200", ai.philterd.philter.api.controllers.FilterApiController.DOCUMENT_ID_HEADER);
             header(explain, "200", ai.philterd.philter.api.controllers.FilterApiController.REVIEW_HEADER, REVIEW);
+            header(explain, "200", LEFTOVERS, LEFTOVERS_DESCRIPTION);
             header(explain, "200", SIGNATURE, SIGNED);
             // CSV text, not a JSON object.
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
@@ -160,6 +182,9 @@ public class ApiDocumentationConfig {
             for (String status : new String[]{"200", "202"}) {
                 header(filter, status, ai.philterd.philter.api.controllers.FilterApiController.REVIEW_HEADER, REVIEW);
             }
+            // A queued document's check runs after the 202, so these are on its status and download responses.
+            header(filter, "200", LEFTOVERS, LEFTOVERS_DESCRIPTION);
+            header(filter, "200", EMAIL_REPORT, EMAIL_REPORT_DESCRIPTION);
             headers(filter, "202", "Location", "X-Effective-Configuration-SHA256");
             retry(filter, "429", "Account async queue capacity reached.");
             retry(filter, "503", "Global queue capacity reached, admission contention wait (500 ms) exhausted, or recovery required.");
@@ -171,6 +196,13 @@ public class ApiDocumentationConfig {
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.EML, new MediaType().schema(new BinarySchema())));
             headers(download, "200", "Content-Disposition");
+            for (final Operation completed : new Operation[]{op(api, "/api/documents/{documentId}/status", "get"),
+                    op(api, "/api/documents/{documentId}", "get")}) {
+                header(completed, "200", LEFTOVERS, LEFTOVERS_DESCRIPTION + " Only once the document is COMPLETE.");
+                header(completed, "200", EMAIL_REPORT, EMAIL_REPORT_DESCRIPTION);
+                header(completed, "200", ai.philterd.philter.api.controllers.FilterApiController.REVIEW_HEADER,
+                        "leftovers when the document's leftover check found something.");
+            }
             for (String path : new String[]{"/api/ledger/{documentId}/export", "/api/contexts/{name}/entries/export"}) {
                 headers(op(api, path, "get"), "200", "Content-Disposition");
             }

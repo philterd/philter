@@ -31,6 +31,10 @@ import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.ReviewSampler;
+import ai.philterd.phileas.model.filtering.LeftoverCheckResult;
+import ai.philterd.phileas.model.filtering.LeftoverFinding;
+import ai.philterd.phileas.policy.config.LeftoverCheck;
+import ai.philterd.phileas.services.filters.filtering.FilterOptions;
 import ai.philterd.phileas.services.pdf.PdfPagePolicies;
 import ai.philterd.phileas.services.strategies.custom.CustomDictionaryFilterStrategy;
 import ai.philterd.philter.api.exceptions.BadRequestException;
@@ -229,18 +233,31 @@ public class RedactionService {
     }
 
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null, null, null);
+        return filter(policyName, userId, contextName, body, mimeType, (PinnedPolicy) null, null, null);
     }
 
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final String filename) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null, filename, null);
+        return filter(policyName, userId, contextName, body, mimeType, (PinnedPolicy) null, filename, null);
+    }
+
+    /** As above, with the caller's {@link FilterOptions}, such as a request for the policy's leftover check. */
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body,
+                                   final MimeType mimeType, final String filename, final FilterOptions options) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, null, filename, null, () -> {}, false, null, options);
     }
 
     /** A PDF whose page sets in {@code pagePolicies} are redacted with their own policies. */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body,
                                    final MimeType mimeType, final String filename,
                                    final List<PagePolicyRequest> pagePolicies) throws Exception {
-        return filter(policyName, userId, contextName, body, mimeType, null, filename, null, () -> {}, false, pagePolicies);
+        return filter(policyName, userId, contextName, body, mimeType, filename, pagePolicies, FilterOptions.defaults());
+    }
+
+    /** As above, with the caller's {@link FilterOptions}. */
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body,
+                                   final MimeType mimeType, final String filename,
+                                   final List<PagePolicyRequest> pagePolicies, final FilterOptions options) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, null, filename, null, () -> {}, false, pagePolicies, options);
     }
 
     /**
@@ -254,7 +271,8 @@ public class RedactionService {
      */
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy, final String filename, final String requestedDocumentId) throws Exception {
         // A request waiting on its response is refused when no PDF slot is free, rather than held.
-        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {}, false, null);
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId, () -> {}, false, null,
+                FilterOptions.defaults());
     }
 
     /**
@@ -267,14 +285,24 @@ public class RedactionService {
                                    final String filename, final String requestedDocumentId,
                                    final Runnable beforePublication) throws Exception {
         return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId,
-                beforePublication, true, null);
+                beforePublication, FilterOptions.defaults());
+    }
+
+    /** For the queue worker, with the options the request was accepted with. */
+    public RedactionOutcome filter(final String policyName, final String userId, final String contextName,
+                                   final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
+                                   final String filename, final String requestedDocumentId,
+                                   final Runnable beforePublication, final FilterOptions options) throws Exception {
+        return filter(policyName, userId, contextName, body, mimeType, pinnedPolicy, filename, requestedDocumentId,
+                beforePublication, true, null, options);
     }
 
     private RedactionOutcome filter(final String policyName, final String userId, final String contextName,
                                     final byte[] body, final MimeType mimeType, final PinnedPolicy pinnedPolicy,
                                     final String filename, final String requestedDocumentId,
                                     final Runnable beforePublication, final boolean queued,
-                                    final List<PagePolicyRequest> pagePolicyRequests) throws Exception {
+                                    final List<PagePolicyRequest> pagePolicyRequests,
+                                    final FilterOptions options) throws Exception {
 
         final UserEntity userEntity = userService.findOneById(userId);
 
@@ -323,6 +351,8 @@ public class RedactionService {
         if (refusal != null) {
             throw new ai.philterd.philter.services.policies.PolicyResolutionException(refusal);
         }
+
+        refuseLeftoverCheckIfOff(phileasPolicy, options);
 
         final PagePolicies pagePolicies = effective != null
                 ? pinnedPagePolicies(effective.pagePolicies())
@@ -433,7 +463,7 @@ public class RedactionService {
         if(mimeType == MimeType.TEXT_PLAIN) {
 
             final String plainText = new String(body);
-            filterResult = plainTextFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, plainText);
+            filterResult = plainTextFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, plainText, options);
 
         } else if(mimeType == MimeType.APPLICATION_PDF) {
 
@@ -448,13 +478,13 @@ public class RedactionService {
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
             try (PdfRenderSlots.Slot ignored = pdfSlot(queued)) {
                 filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body,
-                        MimeType.APPLICATION_PDF, pagePolicies == null ? null : pagePolicies.phileas());
+                        MimeType.APPLICATION_PDF, pagePolicies == null ? null : pagePolicies.phileas(), options);
             }
 
         } else if(mimeType == MimeType.APPLICATION_DOCX || mimeType == MimeType.APPLICATION_XLSX) {
 
             OfficeInputValidator.validate(body, OfficeInputValidator.declaredType(mimeType));
-            filterResult = ooxmlFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, mimeType);
+            filterResult = ooxmlFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, mimeType, options);
 
         } else if(mimeType == MimeType.MESSAGE_RFC822 || mimeType == MimeType.APPLICATION_VND_MS_OUTLOOK) {
 
@@ -465,7 +495,7 @@ public class RedactionService {
                     && phileasPolicy.getConfig().getEmail().getAttachments() == Email.Attachments.REDACT;
             try (PdfRenderSlots.Slot ignored = rendersPdf ? pdfSlot(queued) : null) {
                 filterResult = emailFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService,
-                        vectorService, effectiveContextName, body, MimeType.MESSAGE_RFC822);
+                        vectorService, effectiveContextName, body, MimeType.MESSAGE_RFC822, options);
             } catch (final EncryptedEmailException e) {
                 throw new BadRequestException(e.getMessage());
             }
@@ -474,7 +504,7 @@ public class RedactionService {
 
             final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
             try (PdfRenderSlots.Slot ignored = pdfSlot(queued)) {
-                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG);
+                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG, options);
             }
 
         } else {
@@ -559,6 +589,11 @@ public class RedactionService {
             auditReviewSampled(userEntity.getId(), documentId, appliedPolicy);
         }
 
+        // A queued document has no request being served, so its record is correlated by the document ID, as the
+        // worker's other events are.
+        recordLeftoverCheck(queued ? documentId : currentRequestId(), userEntity.getId(), documentId, appliedPolicy,
+                filterResult.getLeftoverCheck());
+
         return new RedactionOutcome(documentId, filterResult, appliedPolicy,
                 pagePolicies == null ? List.of() : pagePolicies.applied());
 
@@ -576,6 +611,60 @@ public class RedactionService {
     public boolean selectForReview(final String effectiveJson) {
         final EffectiveConfiguration effective = gson.fromJson(effectiveJson, EffectiveConfiguration.class);
         return ReviewSampler.isSelected(gson.fromJson(effective.policyJson(), Policy.class));
+    }
+
+    static final String LEFTOVER_CHECK_OFF = "leftover_check=true requests the policy's leftover check, but the policy's "
+            + "config.review.leftoverCheck.mode is off, so no check would run. Omit leftover_check, or set the mode to "
+            + "onRequest or always.";
+
+    /** Refuses a request for the leftover check under a policy whose mode is off, so no caller thinks one ran. */
+    static void refuseLeftoverCheckIfOff(final Policy policy, final FilterOptions options) {
+        if (options != null && options.isLeftoverCheckRequested() && leftoverCheckMode(policy) == LeftoverCheck.Mode.OFF) {
+            throw new BadRequestException(LEFTOVER_CHECK_OFF);
+        }
+    }
+
+    /** As {@link #refuseLeftoverCheckIfOff(Policy, FilterOptions)}, with the policy captured for a queued document. */
+    public void refuseLeftoverCheckIfOff(final String effectiveJson, final FilterOptions options) {
+        final EffectiveConfiguration effective = gson.fromJson(effectiveJson, EffectiveConfiguration.class);
+        refuseLeftoverCheckIfOff(gson.fromJson(effective.policyJson(), Policy.class), options);
+    }
+
+    private static LeftoverCheck.Mode leftoverCheckMode(final Policy policy) {
+        if (policy.getConfig() == null || policy.getConfig().getReview() == null) {
+            return LeftoverCheck.Mode.OFF;
+        }
+        return policy.getConfig().getReview().getLeftoverCheck().getMode();
+    }
+
+    /*
+     * Counts each check by its outcome and each finding by its type, and records a redaction_leftovers_found audit
+     * event when the check found anything. Neither carries a finding's text or a policy name.
+     */
+    private void recordLeftoverCheck(final String requestId, final String userId, final String documentId,
+                                     final AppliedPolicy appliedPolicy, final LeftoverCheckResult check) {
+        if (check == null || (!check.isPerformed() && check.getReason() != LeftoverCheckResult.Reason.UNREADABLE_OUTPUT)) {
+            return;
+        }
+        if (!check.isPerformed()) {
+            meterRegistry.counter("philter.leftover.checks", "outcome", "not_checked").increment();
+            return;
+        }
+        final boolean found = check.getFindingCount() > 0;
+        meterRegistry.counter("philter.leftover.checks", "outcome", found ? "found" : "none_found").increment();
+        if (!found) {
+            return;
+        }
+        final java.util.SortedSet<String> types = new java.util.TreeSet<>();
+        for (final LeftoverFinding finding : check.getFindings()) {
+            final String type = finding.getFilterType().getType();
+            types.add(type);
+            meterRegistry.counter("philter.leftover.findings", "filter_type", type).increment();
+        }
+        auditEventPublisher.auditEvent(requestId, AuditLogEvent.REDACTION_LEFTOVERS_FOUND, userId, null, null,
+                "documentId: " + AuditDetails.quote(documentId) + ", policy: " + AuditDetails.quote(appliedPolicy.name())
+                        + ", policyVersion: " + appliedPolicy.version() + ", count: " + check.getFindingCount()
+                        + ", types: " + AuditDetails.quote(String.join(", ", types)));
     }
 
     /** Records that the policy's config.review.samplingRate selected the request being served for review. */

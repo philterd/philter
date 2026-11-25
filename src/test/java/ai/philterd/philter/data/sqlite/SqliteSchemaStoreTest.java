@@ -110,6 +110,25 @@ class SqliteSchemaStoreTest {
     }
 
     @Test
+    void aVersionTwoDatabaseGetsTheLeftoverReportColumnsAndKeepsItsJobs() throws Exception {
+        final List<Migration> versionTwo = SqliteMigrations.all(database).subList(0, 1);
+        assertEquals(2, new SchemaMigrator(new SqliteSchemaStore(database, versionTwo), versionTwo, Duration.ofSeconds(5)).migrate());
+        database.write(connection -> Sql.update(connection,
+                "INSERT INTO pending_documents (id, user_id, document_id, status) VALUES (?, ?, ?, ?)", "j1", "u1", "d1", "COMPLETE"));
+
+        final List<Migration> migrations = SqliteMigrations.all(database);
+        assertEquals(3, new SchemaMigrator(new SqliteSchemaStore(database, migrations), migrations, Duration.ofSeconds(5)).migrate());
+
+        final String row = database.read(connection -> Sql.first(connection, "SELECT document_id, leftover_check_requested, "
+                + "leftovers, email_report FROM pending_documents WHERE id = ?", r -> r.string("document_id") + ","
+                + r.intValue("leftover_check_requested") + "," + r.string("leftovers") + "," + r.string("email_report"), "j1"));
+        assertEquals("d1,0,null,null", row);
+
+        // It can run again, as after stopping before its version was recorded.
+        migrations.get(1).apply();
+    }
+
+    @Test
     void aVersionOneDatabaseGetsContextValuesAndKeepsItsContexts() {
         final SqliteSchemaStore store = new SqliteSchemaStore(database, List.of());
         new SchemaMigrator(store, List.of(), Duration.ofSeconds(5)).migrate();
@@ -117,7 +136,7 @@ class SqliteSchemaStoreTest {
                 "c1", "u1", "claims"));
 
         final List<Migration> migrations = SqliteMigrations.all(database);
-        assertEquals(2, new SchemaMigrator(new SqliteSchemaStore(database, migrations), migrations, Duration.ofSeconds(5)).migrate());
+        assertEquals(3, new SchemaMigrator(new SqliteSchemaStore(database, migrations), migrations, Duration.ofSeconds(5)).migrate());
 
         final SqliteContextDataService contexts = new SqliteContextDataService(database, null, null, null);
         assertTrue(contexts.findOneByNameAndUserId("claims", "u1").getValues().isEmpty());

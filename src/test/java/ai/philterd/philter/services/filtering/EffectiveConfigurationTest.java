@@ -51,7 +51,7 @@ class EffectiveConfigurationTest {
         assertThrows(IllegalStateException.class, () -> service.filter("p", user.getId(), "context", "text".getBytes(),
                 ai.philterd.phileas.model.filtering.MimeType.TEXT_PLAIN, pin, null, "document", () -> { throw new IllegalStateException("stop before publication"); }));
         var actual = org.mockito.ArgumentCaptor.forClass(Policy.class);
-        verify(filter).filter(actual.capture(), any(), any(), eq("context"), eq("text"));
+        verify(filter).filter(actual.capture(), any(), any(), eq("context"), eq("text"), any());
         assertTrue(new Gson().toJson(actual.getValue()).contains("captured-name"));
         verifyNoInteractions(lists, globalLists, contexts);
     }

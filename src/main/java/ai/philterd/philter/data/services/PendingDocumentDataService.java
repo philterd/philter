@@ -83,7 +83,18 @@ public interface PendingDocumentDataService {
      */
     boolean beginPublication(final String id, final String claimToken);
 
-    boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output);
+    /** What a completed redaction reports beyond its output: the response header values, each null when absent. */
+    record ResultReport(String leftovers, String emailReport) {
+        public static final ResultReport NONE = new ResultReport(null, null);
+    }
+
+    default boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output) {
+        return markComplete(id, userId, claimToken, output, ResultReport.NONE);
+    }
+
+    /** Publishes the output, and the report returned with it on the status and download responses. */
+    boolean markComplete(final String id, final String userId, final String claimToken, final byte[] output,
+                         final ResultReport report);
 
     boolean markFailed(final String id, final String claimToken, final String errorMessage);
 

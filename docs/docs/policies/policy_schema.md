@@ -45,6 +45,7 @@ Global configuration settings.
 | `splitting` | object | Whether and how to split input text before filtering. |
 | `pdf` | object | PDF rendering settings for PDF redaction. |
 | `email` | object | Header, attachment, and inline image handling for email messages. |
+| `review` | object | Selecting requests for human review: a sampling rate and the leftover check. |
 | `postFilters` | object | Post-processing applied to redacted output. |
 | `analysis` | object | Analysis feature settings. |
 
@@ -83,6 +84,14 @@ Global configuration settings.
 | `inlineImages` | string | `keep` | `keep` (uninspected) or `remove`. |
 
 See [Email messages](../redaction/redacting_documents.md#email-messages).
+
+**`config.review`**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `samplingRate` | number (0.0–1.0) | `0.0` | The probability a request is selected for review. See [Sampling requests for review](filter_policies.md#sampling-requests-for-review). |
+| `leftoverCheck.mode` | string | `off` | When the leftover check runs: `off`, `onRequest`, or `always`. See [Leftover check](filter_policies.md#leftover-check). |
+| `leftoverCheck.using` | string | `broad` | What it detects with: `broad` or `samePolicy`. |
 
 **`config.postFilters`**
 

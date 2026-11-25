@@ -55,6 +55,9 @@ import java.util.Set;
  * <p>An email body is read in full too. An Outlook message is a compound file, as a legacy {@code .doc} or
  * {@code .xls} is, so its streams are checked; a MIME message has no signature, so it must parse as one.
  *
+ * <p>A text body is checked for one more case: an email message with encoded or multipart content, whose
+ * encoded values no filter would match (see {@link EncodedEmailDetector}). Only the start of the body is read.
+ *
  * <p>Detection is unconditional. Comparing eight bytes costs on the order of a nanosecond, so there
  * is nothing to gain by making it configurable.
  */
@@ -93,6 +96,9 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
             final EmailInputValidator.Format email = EmailInputValidator.declaredFormat(declared);
             if (email != null) {
                 EmailInputValidator.validate(wrapped.readBody(), email);
+            }
+            if (isDeclaredText(declared)) {
+                refuseEncodedEmail(wrapped.peek(EncodedEmailDetector.SCAN_LIMIT));
             }
         } catch (final UnsupportedMediaTypeException | BadRequestException | PayloadTooLargeException e) {
             LOGGER.warn("Rejected a document whose body contradicts its declared content type or exceeds a limit: {}", e.getMessage());
@@ -156,6 +162,15 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
                     + detected.getDescription() + ".");
         }
 
+    }
+
+    private static void refuseEncodedEmail(final byte[] leading) {
+        final String found = EncodedEmailDetector.detect(leading);
+        if (found != null) {
+            throw new UnsupportedMediaTypeException("The request declares text/plain but the body is an email message "
+                    + "with encoded or multipart content (" + found + "), which cannot be redacted as text. Send it as "
+                    + "message/rfc822 to redact it as an email message, or decode it and send the text.");
+        }
     }
 
     private static boolean isDeclaredPdf(final String contentType) {

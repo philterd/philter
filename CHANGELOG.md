@@ -78,6 +78,12 @@ Uses Phileas 4.6.0.
 
 ### Fixed
 
+- **Encoded email sent as text:** a `text/plain` body that is an email message with
+  `Content-Transfer-Encoding: base64` or `quoted-printable`, or `multipart/*` content, is refused with
+  `415` on `/api/filter` and `/api/explain` instead of being redacted as text, which returned its encoded
+  values unchanged with `200` ([#222](https://github.com/philterd/philter/issues/222)). Callers sending
+  such a message as `text/plain` must now decode it first or send it as `message/rfc822`. Email without
+  encoded content is still accepted as text.
 - **Audit writes that failed the request:** with MongoDB storage, an audit event whose principal or
   associated object was not a record ID could fail the request being audited with `500` instead of being
   recorded. The value is now stored as text, and a failure to store any audit event is logged rather

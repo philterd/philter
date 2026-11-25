@@ -4878,7 +4878,7 @@
             }
           },
           "415": {
-            "description": "The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, or a body that is not a MIME message sent as message/rfc822.",
+            "description": "The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, a body that is not a MIME message sent as message/rfc822, or an email message with base64, quoted-printable, or multipart content sent as text/plain.",
             "content": {
               "application/json": {
                 "schema": {

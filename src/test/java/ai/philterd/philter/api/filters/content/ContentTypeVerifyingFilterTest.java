@@ -274,6 +274,34 @@ class ContentTypeVerifyingFilterTest {
     }
 
     @Test
+    void anEncodedEmailDeclaredAsTextIsRefusedOnBothEndpoints() throws Exception {
+        final byte[] encoded = EmailMessages.emlEncoded("base64", "The patient's SSN is 123-45-6789.");
+        for (final String path : new String[]{"/api/filter", "/api/explain"}) {
+            final Exception refused = filter(path, "text/plain", encoded, null);
+            assertInstanceOf(UnsupportedMediaTypeException.class, refused, path);
+            assertTrue(refused.getMessage().contains("message/rfc822"), refused.getMessage());
+            assertTrue(refused.getMessage().contains("base64"), refused.getMessage());
+        }
+    }
+
+    @Test
+    void anUnencodedEmailDeclaredAsTextPassesIntact() throws Exception {
+        final byte[] eml = EmailMessages.eml("Hello", "The patient's SSN is 123-45-6789.");
+        final byte[][] seen = new byte[1][];
+        assertNull(filter("/api/filter", "text/plain", eml, seen));
+        assertArrayEquals(eml, seen[0]);
+    }
+
+    @Test
+    void aLargeTextBodyPassesIntact() throws Exception {
+        // Larger than the scan, so the part read for the check and the rest are both replayed.
+        final byte[] large = "Patient SSN 123-45-6789. ".repeat(400_000).getBytes(StandardCharsets.UTF_8);
+        final byte[][] seen = new byte[1][];
+        assertNull(filter("/api/filter", "text/plain", large, seen));
+        assertArrayEquals(large, seen[0]);
+    }
+
+    @Test
     void detectionNamesEachFormatItRecognizes() {
         assertEquals(DocumentType.PDF, DocumentType.detect(PDF));
         assertEquals(DocumentType.ZIP, DocumentType.detect(DOCX));

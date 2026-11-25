@@ -296,6 +296,30 @@ class EmailMessagesApiIT {
     }
 
     @Test
+    @DisplayName("An unencoded email sent as text/plain is redacted as text")
+    void anUnencodedEmailSentAsTextIsRedacted() throws Exception {
+        final HttpResponse<String> response = redact("?p=ssn-only", "text/plain", "text/plain", EmailMessages.eml("Hello", TEXT));
+        assertEquals(200, response.statusCode(), response.body());
+        assertFalse(response.body().contains(SSN), response.body());
+        assertTrue(response.body().contains("{{{REDACTED-ssn}}}"), response.body());
+    }
+
+    @Test
+    @DisplayName("An encoded or multipart email sent as text/plain is refused with 415 by filter and explain")
+    void anEncodedEmailSentAsTextIsRefused() throws Exception {
+        final byte[][] encoded = {EmailMessages.emlEncoded("base64", TEXT), EmailMessages.emlEncoded("quoted-printable", TEXT),
+                EmailMessages.emlWithAttachment(TEXT, "notes.txt", "text/plain", TEXT.getBytes(StandardCharsets.UTF_8))};
+        for (final byte[] body : encoded) {
+            final HttpResponse<String> filtered = redact("?p=ssn-only", "text/plain", "text/plain", body);
+            assertEquals(415, filtered.statusCode(), filtered.body());
+            assertTrue(filtered.body().contains("message/rfc822"), filtered.body());
+            final HttpResponse<String> explained = send(authenticated("/api/explain?p=ssn-only").header("Content-Type", "text/plain")
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build());
+            assertEquals(415, explained.statusCode(), explained.body());
+        }
+    }
+
+    @Test
     @DisplayName("Redactions in an email message are recorded in the ledger")
     void redactionsAreLedgered() throws Exception {
         final String context = "email-" + UUID.randomUUID().toString().substring(0, 8);

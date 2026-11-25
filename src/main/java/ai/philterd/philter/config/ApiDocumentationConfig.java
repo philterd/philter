@@ -115,7 +115,7 @@ public class ApiDocumentationConfig {
             filter.setOperationId("filter");
             filter.setSummary("Redact text, a PDF, a Word document, an Excel workbook, or an email message.");
             filter.getResponses().computeIfAbsent("415", status -> new ApiResponse())
-                    .setDescription("The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, or a body that is not a MIME message sent as message/rfc822.");
+                    .setDescription("The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, a body that is not a MIME message sent as message/rfc822, or an email message with base64, quoted-printable, or multipart content sent as text/plain.");
             filter.getResponses().computeIfAbsent("406", status -> new ApiResponse())
                     .setDescription("No representation matches Accept. An email message, .eml or .msg, is returned only as message/rfc822.");
             filter.setDescription("Requires the `redact` scope. Text is synchronous and returns text/plain. "

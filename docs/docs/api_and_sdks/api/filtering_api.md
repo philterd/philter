@@ -69,6 +69,15 @@ signature, so a body declared as `message/rfc822` must parse as a message with a
 headers. Either is otherwise refused with `415`. An email message over the
 [email limits](../../settings.md#redaction-engine) is refused with `413 Payload Too Large`.
 
+An email message sent as `text/plain` is checked too, since it has no signature. If the body begins
+with a block of email headers (each line `Name: value` or a folded continuation, up to the first blank
+line, after an mbox `From ` separator line if there is one) that declares `Content-Transfer-Encoding: base64` or `quoted-printable`, or a `multipart/*`
+`Content-Type`, it is refused with `415`: encoded content is not text a filter can match, so it would
+be returned unredacted. Send such a message as `message/rfc822`, or decode it and send the text. An
+email whose body is not encoded, and text that merely starts with a line such as `From: ...`, is
+accepted and redacted as text. Only the first 256 KB of a text body is read for this check, and a
+header block that does not end within it is not checked.
+
 ### Response Headers
 
 Every `filter` response reports which policy version governed the request, so the applied policy is recorded without a second call:

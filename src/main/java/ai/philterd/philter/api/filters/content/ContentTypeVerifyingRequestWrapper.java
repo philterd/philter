@@ -59,6 +59,16 @@ public class ContentTypeVerifyingRequestWrapper extends HttpServletRequestWrappe
         return all;
     }
 
+    /**
+     * Reads up to {@code max} bytes from the start of the body without consuming them, so a check can look at the
+     * beginning of a large body without holding all of it. The size limit of the request this wraps applies.
+     */
+    public byte[] peek(final int max) throws IOException {
+        final byte[] prefix = body.readNBytes(max);
+        body = new SequenceInputStream(new ByteArrayInputStream(prefix), body);
+        return prefix;
+    }
+
     /** The leading bytes of the body, up to {@link DocumentType#SIGNATURE_LENGTH}. */
     public byte[] getLeadingBytes() {
         return leadingBytes;

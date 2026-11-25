@@ -46,6 +46,16 @@ public final class EmailMessages {
         return bytes(message(subject, body));
     }
 
+    /** A single-part text message whose body is sent with the given transfer encoding. */
+    public static byte[] emlEncoded(final String encoding, final String body) throws Exception {
+        final MimeMessage message = message("Encoded", body);
+        message.saveChanges();
+        message.setHeader("Content-Transfer-Encoding", encoding);
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        message.writeTo(out);
+        return out.toByteArray();
+    }
+
     /** A message with a text body and one attachment. */
     public static byte[] emlWithAttachment(final String body, final String fileName, final String type,
                                            final byte[] content) throws Exception {

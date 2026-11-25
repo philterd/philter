@@ -1,6 +1,6 @@
 # Endpoint inventory
 
-Every HTTP operation Philter 4.0 exposes is listed below. The three `/api/filter` rows are one operation served by three handlers, selected by the request and response media types; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
+Every HTTP operation Philter 4.0 exposes is listed below. The `/api/filter` rows are one operation served by several handlers, selected by the request and response media types; request parameters, bodies, examples, and resource-specific errors are in the linked references and [OpenAPI](../openapi.json).
 
 Send `Authorization: Bearer <api key>` unless the scope is Public. "Any key" accepts any valid key, whatever its scopes. Protected operations reject absent/invalid credentials with 401 and insufficient scope with 403. Account ownership is enforced in addition to scope. Where `owner` is supported, cross-user access requires an administrator and `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; inaccessible owners return 404.
 
@@ -35,6 +35,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | POST | `/api/filter` | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/vnd.openxmlformats-officedocument.wordprocessingml.document | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/zip | `redact` | [Details](filtering_api.md) |
+| POST | `/api/filter` | message/rfc822 | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | text/plain | `redact` | [Details](filtering_api.md) |
 | GET | `/api/health` | application/json | `Public` | [Details](public_api.md) |
 | GET | `/api/holds` | application/json | `holds:read` | [Details](legal_holds_api.md) |

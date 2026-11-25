@@ -15,6 +15,8 @@ Philter redacts the following content types, selected by the request's `Content-
 
 *   **Word (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`)** and **Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)**: Identified information is replaced in the document according to the filter strategy, as for text, and the response is an editable document of the same format. Redaction is asynchronous by default, as for PDF. See [Word and Excel documents](#word-and-excel-documents).
 
+*   **Email (`message/rfc822`, `.eml`)** and **Outlook (`application/vnd.ms-outlook`, `.msg`)**: Headers and text bodies are redacted according to the filter strategy, as for text, and the response is a MIME message, `message/rfc822`, whatever the input. Redaction is asynchronous by default, as for PDF. See [Email messages](#email-messages).
+
 Philter does not redact other Office formats (`.doc`, `.xls`, PowerPoint, templates, and macro-enabled files), OpenDocument files, or images.
 
 ## Word and Excel Documents
@@ -39,6 +41,59 @@ Limitations:
 A body declared as Word or Excel must be a document of that type: an Excel workbook sent as Word, or any other ZIP file, is refused with `415 Unsupported Media Type`. A document that decompresses to more than [`OFFICE_MAX_UNCOMPRESSED_BYTES`](../settings.md#redaction-engine), has more than `OFFICE_MAX_ENTRIES` entries, or has an entry larger than 100 KB that expands to more than 100 times its compressed size is refused with `413 Payload Too Large`.
 
 In the [redaction ledger](ledgers.md), the start position of a redaction in a Word or Excel document is its offset within the paragraph, cell, or other piece of text it was found in, not within the whole document.
+
+## Email Messages
+
+Philter redacts MIME messages (`.eml`) and Outlook messages (`.msg`). Both are returned as `.eml` (`message/rfc822`): an Outlook message cannot be written back in its own format, so it is converted. Request it with `Accept: message/rfc822` or `Accept: */*`; any other `Accept` is refused with `406 Not Acceptable`.
+
+The policy's identifiers redact:
+
+*   the `Subject`, `From`, `To`, and `Cc` headers, and
+*   every text body part. An HTML body is redacted as markup, so values in attributes such as `mailto:` links are covered, and by its visible text.
+
+A message nested in another, such as a forwarded message, is redacted the same way. From an Outlook message, the subject, sender, recipients, sent date, bodies, and attachments are carried over; its stored transport headers are not.
+
+### Email settings in the policy
+
+The policy's `config.email` decides what happens to other headers, attachments, and inline images, so two policies can handle the same message differently. A queued message is redacted with the settings of the policy version in force when it was accepted. The defaults are:
+
+```json
+{
+   "config": {
+      "email": {
+         "headers": {
+            "removeTechnical": true,
+            "removeIdentity": true,
+            "removeDate": false,
+            "removeSubject": false
+         },
+         "attachments": "keep",
+         "inlineImages": "keep"
+      }
+   }
+}
+```
+
+| Setting | Default | Effect |
+|---|---|---|
+| `headers.removeTechnical` | `true` | Removes `Received`, `Return-Path`, `Message-ID`, `User-Agent`, `X-Mailer`, `X-MimeOLE`, `DKIM-Signature`, `Authentication-Results`, `Received-SPF`, `Autocrypt`, and every header beginning `X-` or `ARC-`. |
+| `headers.removeIdentity` | `true` | Removes `Bcc`, `Reply-To`, `Sender`, and every header beginning `Resent-`. |
+| `headers.removeDate` | `false` | Removes the `Date` header. |
+| `headers.removeSubject` | `false` | Removes the `Subject` header instead of redacting it. |
+| `attachments` | `keep` | `keep` leaves attachments as they are, **not inspected or redacted**. `remove` deletes them, including their filenames. `redact` redacts each PDF, Word (`.docx`), and Excel (`.xlsx`) attachment with the same policy, and removes any other attachment and any that cannot be redacted. |
+| `inlineImages` | `keep` | `keep` leaves images embedded in the body as they are, not inspected. `remove` deletes them. |
+
+Other headers are kept as they are. Under the default `attachments: keep`, an attachment can contain sensitive information that is returned unchanged; use `remove` or `redact` when that matters. A PDF attachment under `redact` is redacted as a PDF is, with the policy's `config.pdf`, so a page with a redaction is flattened to an image. An attachment is recognized as PDF, Word, or Excel by its media type or filename extension. Under `attachments: remove`, a forwarded message attached to the message is removed too; under `keep` and `redact`, it is redacted as a nested message.
+
+Limitations:
+
+*   A signed message (S/MIME or PGP) is redacted and its signature is removed, since redacting the message invalidates it.
+*   An encrypted message cannot be read, so it is refused with `400 Bad Request` and a message saying so, and nothing is returned. A queued encrypted message fails with that message.
+*   Philter does not report which attachments or inline images were kept uninspected, or which were removed under `redact` because they could not be redacted.
+
+A body declared as `application/vnd.ms-outlook` must be an Outlook message: a legacy Word or Excel file, which shares its container format, is refused with `415 Unsupported Media Type`. A body declared as `message/rfc822` must parse as a MIME message with a block of message headers, and is refused with `415` otherwise. A message larger than [`EMAIL_MAX_BYTES`](../settings.md#redaction-engine), with an attachment larger than `EMAIL_MAX_ATTACHMENT_BYTES`, with more than `EMAIL_MAX_ATTACHMENTS` attachments, or with messages nested more than `EMAIL_MAX_NESTING_DEPTH` deep is refused with `413 Payload Too Large` before redaction starts.
+
+In the [redaction ledger](ledgers.md), the start position of a redaction in an email message is its offset within the header or body part it was found in. Redactions in attachments under `redact` are recorded as well. Removed headers, attachments, and inline images are not detections and are not recorded.
 
 ## Different Policies for Different Pages of a PDF
 
@@ -68,7 +123,7 @@ When you submit a document to Philter for redaction:
 
 1.  **Submission**: The document is sent to `POST /api/filter`. Its `Content-Type` selects the processing engine. Philter checks the leading bytes against the declared type and rejects a body that contradicts it (for example, a PDF sent as `text/plain`) with `415 Unsupported Media Type`; it does not use the bytes to choose a different format.
 2.  **Policy-driven identification**: The engine applies the selected [redaction policy](policies.md), which defines what counts as sensitive and how each type is handled.
-3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDF, Word, and Excel documents are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
+3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDF, Word, Excel, and email documents are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
 4.  **Ledgering**: If the [redaction ledger](ledgers.md) is enabled for the context, each redaction is recorded as a hash-chained entry stamped with the policy version that governed it.
 
 Queued document jobs retain encrypted input while pending or processing and remove it when the job reaches a terminal state. Results and job records have a separate [retention period](../settings.md#asynchronous-documents-and-webhooks); captured execution configurations are retained separately.
@@ -109,7 +164,18 @@ curl -k -X POST "https://localhost:8080/api/filter?p=my-policy&async=false" \
   -o redacted.docx
 ```
 
-Without `async=false`, a PDF, Word, or Excel document is queued and processed asynchronously; poll and download it with the [Documents API](../api_and_sdks/api/documents_api.md), or receive a [webhook](../api_and_sdks/api/webhooks.md) when it completes.
+An Outlook message is sent as `application/vnd.ms-outlook` and returned as `message/rfc822`:
+
+```bash
+curl -k -X POST "https://localhost:8080/api/filter?p=my-policy&async=false" \
+  --data-binary @sample.msg \
+  -H "Content-Type: application/vnd.ms-outlook" \
+  -H "Accept: message/rfc822" \
+  -H "Authorization: Bearer $API_KEY" \
+  -o redacted.eml
+```
+
+Without `async=false`, a PDF, Word, Excel, or email document is queued and processed asynchronously; poll and download it with the [Documents API](../api_and_sdks/api/documents_api.md), or receive a [webhook](../api_and_sdks/api/webhooks.md) when it completes.
 
 ## Immutable Cryptographic Ledgers
 

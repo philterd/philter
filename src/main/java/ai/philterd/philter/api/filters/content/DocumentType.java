@@ -18,7 +18,7 @@ package ai.philterd.philter.api.filters.content;
 /**
  * A document format recognized from the leading bytes of a request body.
  *
- * <p>Philter accepts only PDF and plain text. The other formats are listed so a body that is plainly
+ * <p>The formats Philter does not accept are listed so a body that is plainly
  * something else can be named in the rejection, rather than falling through to {@link #UNKNOWN} and
  * being treated as text. Text has no signature of its own, so it can only ever be inferred from the
  * absence of a known one, which is why the declared content type is still required.
@@ -30,8 +30,8 @@ public enum DocumentType {
     /** ZIP container. Also what a .docx, .xlsx, or .pptx is underneath. */
     ZIP("ZIP or Office Open XML (.docx, .xlsx, .pptx)", new byte[]{0x50, 0x4B, 0x03, 0x04}),
 
-    /** Legacy Microsoft Office compound file: .doc, .xls, .ppt. */
-    OLE2("legacy Microsoft Office (.doc, .xls, .ppt)",
+    /** Microsoft compound file: legacy Office (.doc, .xls, .ppt) and Outlook messages (.msg). */
+    OLE2("legacy Microsoft Office (.doc, .xls, .ppt) or Outlook message (.msg)",
             new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1}),
 
     JPEG("JPEG image", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}),

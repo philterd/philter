@@ -36,6 +36,7 @@ import java.util.Set;
 import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.model.Constants;
 import ai.philterd.philter.model.ServiceResponse;
+import ai.philterd.philter.testutil.EmailMessages;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import ai.philterd.philter.testutil.OfficeDocuments;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -552,7 +553,7 @@ class ApiFilterChainIT {
                     request.header("Accept", mapping.produces()[0]);
                 }
 
-                // ContentTypeVerifyingFilter inspects the bytes, so a PDF, Word, or Excel endpoint needs a real
+                // ContentTypeVerifyingFilter inspects the bytes, so a PDF, Word, Excel, or email endpoint needs a real
                 // document to get far enough to be refused for the right reason.
                 final HttpRequest.BodyPublisher body = "GET".equals(httpMethod) || "DELETE".equals(httpMethod)
                         ? HttpRequest.BodyPublishers.noBody()
@@ -562,7 +563,11 @@ class ApiFilterChainIT {
                                         ? HttpRequest.BodyPublishers.ofByteArray(OfficeDocuments.docx("text"))
                                         : FilterApiController.XLSX.equals(consumes)
                                                 ? HttpRequest.BodyPublishers.ofByteArray(OfficeDocuments.xlsx("text"))
-                                                : HttpRequest.BodyPublishers.ofString("{}");
+                                                : FilterApiController.EML.equals(consumes)
+                                                        ? HttpRequest.BodyPublishers.ofByteArray(EmailMessages.eml("Hello", "text"))
+                                                        : FilterApiController.MSG.equals(consumes)
+                                                                ? HttpRequest.BodyPublishers.ofByteArray(EmailMessages.msg("Hello", "text"))
+                                                                : HttpRequest.BodyPublishers.ofString("{}");
 
                 final HttpResponse<String> response = send(request.method(httpMethod, body).build());
                 checked++;

@@ -44,6 +44,7 @@ Global configuration settings.
 |----------|------|-------------|
 | `splitting` | object | Whether and how to split input text before filtering. |
 | `pdf` | object | PDF rendering settings for PDF redaction. |
+| `email` | object | Header, attachment, and inline image handling for email messages. |
 | `postFilters` | object | Post-processing applied to redacted output. |
 | `analysis` | object | Analysis feature settings. |
 
@@ -69,6 +70,19 @@ Global configuration settings.
 | `dpi` | integer | `150` | Resolution of the image a redacted page is rendered to. It sets the image's detail and the output's file size, not the page size. |
 | `compressionQuality` | number (0.0–1.0) | `1.0` | JPEG compression quality for PDF output. |
 | `preserveUnredactedPages` | boolean | `false` | Keep pages with no redactions in their original form. |
+
+**`config.email`**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `headers.removeTechnical` | boolean | `true` | Remove routing and client headers, such as `Received`, `Message-ID`, and every `X-` header. |
+| `headers.removeIdentity` | boolean | `true` | Remove `Bcc`, `Reply-To`, `Sender`, and `Resent-` headers. |
+| `headers.removeDate` | boolean | `false` | Remove the `Date` header. |
+| `headers.removeSubject` | boolean | `false` | Remove the `Subject` header instead of redacting it. |
+| `attachments` | string | `keep` | `keep` (uninspected), `remove`, or `redact` (PDF, Word, and Excel attachments are redacted; others are removed). |
+| `inlineImages` | string | `keep` | `keep` (uninspected) or `remove`. |
+
+See [Email messages](../redaction/redacting_documents.md#email-messages).
 
 **`config.postFilters`**
 

@@ -3877,6 +3877,12 @@
                   "type": "string",
                   "format": "binary"
                 }
+              },
+              "message/rfc822": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             },
             "headers": {
@@ -4513,8 +4519,8 @@
         "tags": [
           "Filter"
         ],
-        "summary": "Redact text, a PDF, a Word document, or an Excel workbook.",
-        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. A Word document or Excel workbook is returned in its own format. PDF, Word, and Excel default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed; sign=true on a PDF, Word, or Excel request is refused with 400 rather than answered unsigned.",
+        "summary": "Redact text, a PDF, a Word document, an Excel workbook, or an email message.",
+        "description": "Requires the `redact` scope. Text is synchronous and returns text/plain. For PDFs select application/pdf or application/zip with Accept. A Word document or Excel workbook is returned in its own format. An email message, message/rfc822 (.eml) or application/vnd.ms-outlook (.msg), is returned as message/rfc822, so select message/rfc822 or */* with Accept. PDF, Word, Excel, and email default to async=true, returning application/json with documentId regardless of the selected download format. Set async=false for inline binary output. Async submission captures resolved configuration. Pass sign=true to request a signature when the deployment has not enabled signing. The admin setting is a floor: with it on every response is signed and sign=false does not change that. It applies to the text path, which is the one that is signed; sign=true on a PDF, Word, Excel, or email request is refused with 400 rather than answered unsigned.",
         "operationId": "filter",
         "parameters": [
           {
@@ -4601,6 +4607,12 @@
                 "format": "binary"
               }
             },
+            "application/vnd.ms-outlook": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
               "schema": {
                 "type": "string",
@@ -4608,6 +4620,12 @@
               }
             },
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "message/rfc822": {
               "schema": {
                 "type": "string",
                 "format": "binary"
@@ -4643,6 +4661,12 @@
                 }
               },
               "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "message/rfc822": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -4756,7 +4780,7 @@
             }
           },
           "400": {
-            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, sign=true on a PDF, Word, or Excel request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.",
+            "description": "Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, unreadable or encrypted email message, sign=true on a PDF, Word, Excel, or email request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4824,7 +4848,7 @@
             }
           },
           "406": {
-            "description": "Not Acceptable",
+            "description": "No representation matches Accept. An email message, .eml or .msg, is returned only as message/rfc822.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4839,7 +4863,7 @@
             }
           },
           "413": {
-            "description": "Request body, resolved configuration (1 MiB), encrypted async record, or a Word or Excel document's decompressed size or entry count exceeds its limit.",
+            "description": "Request body, resolved configuration (1 MiB), encrypted async record, a Word or Excel document's decompressed size or entry count, or an email message's size, attachment size, attachment count, or nesting depth exceeds its limit.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4854,7 +4878,7 @@
             }
           },
           "415": {
-            "description": "The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document.",
+            "description": "The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, or a body that is not a MIME message sent as message/rfc822.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21073,10 +21097,6 @@
       "name": "Policy Versions"
     },
     {
-      "description": "Redact text, PDF, Word, and Excel documents.",
-      "name": "Filter"
-    },
-    {
       "description": "Operations for retrieving asynchronously redacted documents.",
       "name": "Documents"
     },
@@ -21103,6 +21123,10 @@
     {
       "description": "Read-only access to the audit log.",
       "name": "Audit Log"
+    },
+    {
+      "description": "Redact text, PDF, Word, and Excel documents, and email messages.",
+      "name": "Filter"
     },
     {
       "description": "Read the PII type counts Philter records for Philter Diffuse. Requires an administrator.",

@@ -4,7 +4,7 @@ Philter has no built-in user interface: everything, including administration, is
 
 Philter's API has the following sections:
 
-* [Redaction API](api/filtering_api.md) - Submit text, PDF, Word, or Excel documents for redaction. PDF, Word, and Excel requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
+* [Redaction API](api/filtering_api.md) - Submit text, PDF, Word, Excel, or email documents for redaction. PDF, Word, Excel, and email requests are asynchronous by default; the redacted bytes are downloaded via the Documents API.
 * [Documents API](api/documents_api.md) - List, poll, download, and delete asynchronous PDF redactions.
 * [Webhooks](api/webhooks.md) - Receive signed HTTP notifications when an asynchronous redaction completes or fails.
 * [Policies API](api/policies_api.md) - Create, modify, and delete [policies](../policies/filter_policies.md).

@@ -16,6 +16,7 @@
 package ai.philterd.philter.api.filters.content;
 
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
+import ai.philterd.philter.testutil.EmailMessages;
 import ai.philterd.philter.testutil.OfficeDocuments;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -241,6 +242,35 @@ class ContentTypeVerifyingFilterTest {
     @Test
     void anEmptyBodyDeclaredAsWordIsRefused() throws Exception {
         assertNotNull(filter("/api/filter", WORD, new byte[0], null));
+    }
+
+    @Test
+    void emailMessagesOfTheDeclaredFormatPassIntact() throws Exception {
+        final byte[] eml = EmailMessages.eml("Hello", "Hi.");
+        final byte[][] seen = new byte[1][];
+        assertNull(filter("/api/filter", "message/rfc822", eml, seen));
+        assertArrayEquals(eml, seen[0]);
+
+        final byte[] msg = EmailMessages.msg("Hello", "Hi.");
+        assertNull(filter("/api/filter", "application/vnd.ms-outlook", msg, seen));
+        assertArrayEquals(msg, seen[0]);
+    }
+
+    @Test
+    void aLegacyWordDocumentDeclaredAsOutlookIsRefused() throws Exception {
+        final Exception refused = filter("/api/filter", "application/vnd.ms-outlook", EmailMessages.legacyWordDocument(), null);
+
+        assertInstanceOf(UnsupportedMediaTypeException.class, refused);
+        assertTrue(refused.getMessage().contains("not an Outlook message"), refused.getMessage());
+    }
+
+    @Test
+    void aBodyThatIsNotAMimeMessageDeclaredAsRfc822IsRefused() throws Exception {
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "message/rfc822", TEXT, null));
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "message/rfc822", PDF, null));
+        assertInstanceOf(UnsupportedMediaTypeException.class,
+                filter("/api/filter", "message/rfc822", EmailMessages.msg("Hello", "Hi."), null));
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "application/vnd.ms-outlook", PDF, null));
     }
 
     @Test

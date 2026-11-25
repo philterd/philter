@@ -20,6 +20,14 @@ Uses Phileas 4.6.0.
   declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
   `OFFICE_MAX_ENTRIES` limit what one may decompress to. Author names and the creator, last modified by,
   company, and manager properties are cleared whatever the policy.
+- **Email redaction:** `POST /api/filter` accepts email messages, `message/rfc822` (`.eml`) and
+  `application/vnd.ms-outlook` (`.msg`), and returns `message/rfc822`, synchronously or queued
+  ([#220](https://github.com/philterd/philter/issues/220)). Headers and text bodies are redacted with the
+  policy, and the policy's `config.email` decides which other headers are removed and whether
+  attachments and inline images are kept, removed, or (for PDF, Word, and Excel attachments) redacted.
+  An Outlook message is converted to `.eml`, a signed message loses its signature, and an encrypted
+  message is refused with `400`. `EMAIL_MAX_BYTES`, `EMAIL_MAX_ATTACHMENT_BYTES`,
+  `EMAIL_MAX_ATTACHMENTS`, and `EMAIL_MAX_NESTING_DEPTH` limit what a message may hold.
 - **Review sampling:** a policy's `config.review.samplingRate` selects that share of requests at random
   for human spot review. A selected `/api/filter` or `/api/explain` response has the header
   `X-Philter-Review: sampled`, explain's body has `reviewSampled`, and each selection is recorded as the

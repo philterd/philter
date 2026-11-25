@@ -73,7 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Tag(name = "Filter", description = "Redact text, PDF, Word, and Excel documents.")
+@Tag(name = "Filter", description = "Redact text, PDF, Word, and Excel documents, and email messages.")
 @Controller
 public class FilterApiController extends AbstractApiController {
 
@@ -319,10 +319,89 @@ public class FilterApiController extends AbstractApiController {
 
     }
 
+    /** MIME email messages (.eml), and the type every redacted email message is returned as. */
+    public static final String EML = "message/rfc822";
+
+    /** Outlook messages (.msg). */
+    public static final String MSG = "application/vnd.ms-outlook";
+
+    @Operation(
+            summary = "Filter an email message (.eml) and receive a redacted email message in return.",
+            description = "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. " +
+                    "Append `?async=false` to receive the redacted message inline (200 OK)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redacted email message (synchronous path)."),
+            @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+    })
+    @RequiresScope(ApiKeyScope.REDACT)
+    @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = EML, consumes = EML)
+    public @ResponseBody ResponseEntity<byte[]> filterEmlAsEml(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @RequestParam(value = "c", defaultValue = "") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
+            @RequestBody byte[] body) throws Exception {
+
+        LOGGER.info("Received uploaded email message. async={}", async);
+        return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
+                MimeType.MESSAGE_RFC822, EML);
+
+    }
+
+    @Operation(
+            summary = "Filter an Outlook message (.msg) and receive a redacted email message (.eml) in return.",
+            description = "An Outlook message cannot be written back in its own format, so it is returned as message/rfc822. "
+                    + "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. " +
+                    "Append `?async=false` to receive the redacted message inline (200 OK)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redacted email message, as message/rfc822 (synchronous path)."),
+            @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+    })
+    @RequiresScope(ApiKeyScope.REDACT)
+    @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = EML, consumes = MSG)
+    public @ResponseBody ResponseEntity<byte[]> filterMsgAsEml(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @RequestParam(value = "c", defaultValue = "") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
+            @RequestBody byte[] body) throws Exception {
+
+        LOGGER.info("Received uploaded Outlook message. async={}", async);
+        return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
+                MimeType.APPLICATION_VND_MS_OUTLOOK, EML);
+
+    }
+
     private ResponseEntity<byte[]> filterOffice(final String authorizationHeader, final String context, final String policyName,
                                                 final boolean async, final String filename, final boolean sign,
                                                 final String fairnessKey, final HttpServletRequest request,
                                                 final byte[] body, final MimeType mimeType) throws Exception {
+        return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
+                mimeType, mimeType.getValue());
+    }
+
+    /** A Word, Excel, or email document, returned as {@code outputMimeType}. */
+    private ResponseEntity<byte[]> filterDocument(final String authorizationHeader, final String context, final String policyName,
+                                                  final boolean async, final String filename, final boolean sign,
+                                                  final String fairnessKey, final HttpServletRequest request,
+                                                  final byte[] body, final MimeType mimeType,
+                                                  final String outputMimeType) throws Exception {
 
         final ApiKeyEntity apiKeyEntity = getApiKeyEntity(authorizationHeader);
 
@@ -338,7 +417,7 @@ public class FilterApiController extends AbstractApiController {
         final String userId = apiKeyEntity.getUserId();
 
         if (async) {
-            return enqueueBinary(userId, body, mimeType, mimeType.getValue(), policyName, context, filename, fairnessKey, List.of());
+            return enqueueBinary(userId, body, mimeType, outputMimeType, policyName, context, filename, fairnessKey, List.of());
         }
 
         final RedactionOutcome outcome = redactionService.filter(policyName, userId, context, body, mimeType, filename);
@@ -347,6 +426,7 @@ public class FilterApiController extends AbstractApiController {
         return ResponseEntity.status(HttpStatus.OK)
                 .headers(policyHeaders(outcome))
                 .header(DOCUMENT_ID_HEADER, outcome.documentId())
+                .contentType(MediaType.parseMediaType(outputMimeType))
                 .body(binaryDocumentFilterResult.getDocument());
 
     }
@@ -415,7 +495,7 @@ public class FilterApiController extends AbstractApiController {
     private static void rejectSigningRequest(final boolean sign) {
         if (sign) {
             throw new BadRequestException(
-                    "PDF, Word, and Excel responses cannot be signed. Omit sign, or use the text/plain endpoint.");
+                    "PDF, Word, Excel, and email responses cannot be signed. Omit sign, or use the text/plain endpoint.");
         }
     }
 
@@ -452,6 +532,9 @@ public class FilterApiController extends AbstractApiController {
             // Page sets are checked against the document here, so a mistake is refused rather than failing the job.
             PagePolicyRequest.checkPageCount(pagePolicies,
                     ai.philterd.philter.services.filtering.PdfInputValidator.validate(body));
+        } else if (ai.philterd.philter.services.filtering.EmailInputValidator.declaredFormat(inputMimeType) != null) {
+            ai.philterd.philter.services.filtering.EmailInputValidator.validate(body,
+                    ai.philterd.philter.services.filtering.EmailInputValidator.declaredFormat(inputMimeType));
         } else {
             final var officeType = ai.philterd.philter.services.filtering.OfficeInputValidator.declaredType(inputMimeType);
             ai.philterd.philter.services.filtering.OfficeInputValidator.validate(body, officeType);

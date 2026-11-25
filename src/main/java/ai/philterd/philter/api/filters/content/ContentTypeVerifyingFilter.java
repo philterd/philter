@@ -20,6 +20,7 @@ import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.PayloadTooLargeException;
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
 import ai.philterd.philter.api.filters.RequestPaths;
+import ai.philterd.philter.services.filtering.EmailInputValidator;
 import ai.philterd.philter.services.filtering.OfficeInputValidator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -50,6 +51,9 @@ import java.util.Set;
  * <p>A body declared as Word or Excel is a ZIP underneath, which the signature cannot tell from any
  * other ZIP, so it is read in full and checked to be a package of the declared type, within the Office
  * limits.
+ *
+ * <p>An email body is read in full too. An Outlook message is a compound file, as a legacy {@code .doc} or
+ * {@code .xls} is, so its streams are checked; a MIME message has no signature, so it must parse as one.
  *
  * <p>Detection is unconditional. Comparing eight bytes costs on the order of a nanosecond, so there
  * is nothing to gain by making it configurable.
@@ -85,6 +89,10 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
             final OoxmlDocumentType office = OfficeInputValidator.declaredType(declared);
             if (office != null) {
                 OfficeInputValidator.validate(wrapped.readBody(), office);
+            }
+            final EmailInputValidator.Format email = EmailInputValidator.declaredFormat(declared);
+            if (email != null) {
+                EmailInputValidator.validate(wrapped.readBody(), email);
             }
         } catch (final UnsupportedMediaTypeException | BadRequestException | PayloadTooLargeException e) {
             LOGGER.warn("Rejected a document whose body contradicts its declared content type or exceeds a limit: {}", e.getMessage());
@@ -125,6 +133,20 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
                 throw new UnsupportedMediaTypeException("The request declares " + office.mimeType().getValue()
                         + " but the body is " + detected.getDescription() + ".");
             }
+            return;
+        }
+
+        final EmailInputValidator.Format email = EmailInputValidator.declaredFormat(declared);
+        if (email == EmailInputValidator.Format.MSG && detected != DocumentType.OLE2) {
+            throw new UnsupportedMediaTypeException("The request declares " + email.mimeType().getValue()
+                    + " but the body is " + detected.getDescription() + ".");
+        }
+        if (email == EmailInputValidator.Format.EML && detected != DocumentType.UNKNOWN) {
+            // MIME has no signature, so a body with a known one is something else.
+            throw new UnsupportedMediaTypeException("The request declares " + email.mimeType().getValue()
+                    + " but the body is " + detected.getDescription() + ".");
+        }
+        if (email != null) {
             return;
         }
 

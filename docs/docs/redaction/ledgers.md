@@ -8,7 +8,7 @@ By maintaining a verifiable record of what was changed, why it was changed, and 
 
 The Philterd ledger system is built on the principles of cryptographic chaining, similar to a blockchain. 
 
-1.  **Granular Recording**: When a document is processed in a ledger-enabled context, each identified PII or PHI span is recorded as an individual entry in that document's ledger. This is the same for plain text, PDF, Word, and Excel documents (see [Important Considerations and Limitations](#important-considerations-and-limitations)).
+1.  **Granular Recording**: When a document is processed in a ledger-enabled context, each identified PII or PHI span is recorded as an individual entry in that document's ledger. This is the same for plain text, PDF, Word, Excel, and email documents (see [Important Considerations and Limitations](#important-considerations-and-limitations)).
 2.  **Cryptographic Chaining**: Each ledger entry contains a cryptographic hash of its own data plus the hash of the preceding entry. This creates a "chain of trust."
 3.  **Tamper Evidence**: Because each entry is linked to the previous one, retroactively modifying an entry or removing one from within a chain breaks the cryptographic chain, which validation detects. Whole chains can still be deleted deliberately when deletion is enabled (see [How and When Ledger Entries Are Deleted](#how-and-when-ledger-entries-are-deleted)).
 4.  **Verifiability**: This architecture allows you to mathematically prove the integrity of your redaction history at any point in time.

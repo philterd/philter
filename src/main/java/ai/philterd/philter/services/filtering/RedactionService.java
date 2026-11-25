@@ -24,6 +24,9 @@ import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.filters.CustomDictionary;
 import ai.philterd.phileas.services.disambiguation.vector.InMemoryVectorService;
 import ai.philterd.phileas.services.disambiguation.vector.VectorService;
+import ai.philterd.phileas.policy.config.Email;
+import ai.philterd.phileas.services.email.EncryptedEmailException;
+import ai.philterd.phileas.services.filters.filtering.EmailFilterService;
 import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
@@ -117,6 +120,7 @@ public class RedactionService {
     private final ConcurrentMap<Boolean, PlainTextFilterService> plainTextFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, PdfFilterService> pdfFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, OoxmlFilterService> ooxmlFilterServices = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Boolean, EmailFilterService> emailFilterServices = new ConcurrentHashMap<>();
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -217,6 +221,11 @@ public class RedactionService {
     private OoxmlFilterService ooxmlFilterService(final boolean disambiguationEnabled) {
         return ooxmlFilterServices.computeIfAbsent(disambiguationEnabled,
                 flag -> new OoxmlFilterService(phileasConfigurationCache.get(flag), httpClient));
+    }
+
+    private EmailFilterService emailFilterService(final boolean disambiguationEnabled) {
+        return emailFilterServices.computeIfAbsent(disambiguationEnabled,
+                flag -> new EmailFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
     public RedactionOutcome filter(final String policyName, final String userId, final String contextName, final byte[] body, final MimeType mimeType) throws Exception {
@@ -446,6 +455,19 @@ public class RedactionService {
 
             OfficeInputValidator.validate(body, OfficeInputValidator.declaredType(mimeType));
             filterResult = ooxmlFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, mimeType);
+
+        } else if(mimeType == MimeType.MESSAGE_RFC822 || mimeType == MimeType.APPLICATION_VND_MS_OUTLOOK) {
+
+            EmailInputValidator.validate(body, EmailInputValidator.declaredFormat(mimeType));
+            // A PDF attachment under attachments: redact is rendered as any PDF is, so it waits for a PDF slot.
+            final boolean redactsAttachments = phileasPolicy.getConfig() != null
+                    && phileasPolicy.getConfig().getEmail().getAttachments() == Email.Attachments.REDACT;
+            try (PdfRenderSlots.Slot ignored = redactsAttachments ? pdfSlot(queued) : null) {
+                filterResult = emailFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService,
+                        vectorService, effectiveContextName, body, MimeType.MESSAGE_RFC822);
+            } catch (final EncryptedEmailException e) {
+                throw new BadRequestException(e.getMessage());
+            }
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {
 

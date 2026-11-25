@@ -458,11 +458,12 @@ public class RedactionService {
 
         } else if(mimeType == MimeType.MESSAGE_RFC822 || mimeType == MimeType.APPLICATION_VND_MS_OUTLOOK) {
 
-            EmailInputValidator.validate(body, EmailInputValidator.declaredFormat(mimeType));
+            final EmailInputValidator.Inspection inspection =
+                    EmailInputValidator.validate(body, EmailInputValidator.declaredFormat(mimeType));
             // A PDF attachment under attachments: redact is rendered as any PDF is, so it waits for a PDF slot.
-            final boolean redactsAttachments = phileasPolicy.getConfig() != null
+            final boolean rendersPdf = inspection.hasPdfAttachment() && phileasPolicy.getConfig() != null
                     && phileasPolicy.getConfig().getEmail().getAttachments() == Email.Attachments.REDACT;
-            try (PdfRenderSlots.Slot ignored = redactsAttachments ? pdfSlot(queued) : null) {
+            try (PdfRenderSlots.Slot ignored = rendersPdf ? pdfSlot(queued) : null) {
                 filterResult = emailFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService,
                         vectorService, effectiveContextName, body, MimeType.MESSAGE_RFC822);
             } catch (final EncryptedEmailException e) {

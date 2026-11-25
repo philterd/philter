@@ -16,11 +16,13 @@
 package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.model.filtering.MimeType;
+import ai.philterd.philter.api.exceptions.BadRequestException;
 import ai.philterd.philter.api.exceptions.PayloadTooLargeException;
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
 import ai.philterd.philter.services.filtering.EmailInputValidator.Format;
 import ai.philterd.philter.services.filtering.EmailInputValidator.Limits;
 import ai.philterd.philter.testutil.EmailMessages;
+import ai.philterd.philter.testutil.EmailMessages.MsgAttachment;
 import ai.philterd.philter.testutil.OfficeDocuments;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -119,6 +122,57 @@ class EmailInputValidatorTest {
         final PayloadTooLargeException refused = assertThrows(PayloadTooLargeException.class,
                 () -> EmailInputValidator.validate(eml, Format.EML, new Limits(0, 0, 0, 2)));
         assertTrue(refused.getMessage().contains("EMAIL_MAX_NESTING_DEPTH"), refused.getMessage());
+    }
+
+    private static final byte[] PDF_BYTES = "%PDF-1.7\nnot a whole PDF".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] TEXT_BYTES = "Notes".getBytes(StandardCharsets.US_ASCII);
+
+    private static boolean emlHasPdf(final String name, final String type, final byte[] content) throws Exception {
+        return EmailInputValidator.validate(EmailMessages.emlWithAttachment("Hi.", name, type, content), Format.EML, NONE)
+                .hasPdfAttachment();
+    }
+
+    private static boolean msgHasPdf(final MsgAttachment... attachments) throws Exception {
+        return EmailInputValidator.validate(EmailMessages.msgWithAttachments("Hello", "Hi.", attachments), Format.MSG, NONE)
+                .hasPdfAttachment();
+    }
+
+    @Test
+    void findsAPdfAttachmentByTypeNameOrContent() throws Exception {
+        assertTrue(emlHasPdf("report", "application/pdf", TEXT_BYTES));
+        assertTrue(emlHasPdf("report.PDF", "application/octet-stream", TEXT_BYTES));
+        assertTrue(emlHasPdf("report", "application/octet-stream", PDF_BYTES));
+        assertFalse(emlHasPdf("notes.txt", "text/plain", TEXT_BYTES));
+        assertFalse(EmailInputValidator.validate(EmailMessages.eml("Hello", "Hi."), Format.EML, NONE).hasPdfAttachment());
+
+        assertTrue(msgHasPdf(new MsgAttachment("report", "application/pdf", TEXT_BYTES)));
+        assertTrue(msgHasPdf(new MsgAttachment("report.pdf", null, TEXT_BYTES)));
+        assertTrue(msgHasPdf(new MsgAttachment("report", null, PDF_BYTES)));
+        assertFalse(msgHasPdf(new MsgAttachment("notes.txt", "text/plain", TEXT_BYTES)));
+    }
+
+    @Test
+    void findsAPdfAttachmentWithNoSizeLimit() throws Exception {
+        final byte[] eml = EmailMessages.emlWithAttachment("Hi.", "report", "application/octet-stream", PDF_BYTES);
+        assertTrue(EmailInputValidator.validate(eml, Format.EML, new Limits(0, 0, 0, 0)).hasPdfAttachment());
+        assertTrue(EmailInputValidator.validate(eml, Format.EML, new Limits(0, 1000, 0, 0)).hasPdfAttachment());
+    }
+
+    @Test
+    void refusesAnEncryptedMessage() throws Exception {
+        final BadRequestException refused = assertThrows(BadRequestException.class,
+                () -> EmailInputValidator.validate(EmailMessages.encrypted(), Format.EML, NONE));
+        assertTrue(refused.getMessage().contains("encrypted"), refused.getMessage());
+
+        final BadRequestException outlook = assertThrows(BadRequestException.class, () -> EmailInputValidator.validate(
+                EmailMessages.msgWithAttachments("Hello", "", new MsgAttachment("smime.p7m", "application/pkcs7-mime", TEXT_BYTES)),
+                Format.MSG, NONE));
+        assertTrue(outlook.getMessage().contains("encrypted"), outlook.getMessage());
+    }
+
+    @Test
+    void leavesAPgpEncryptedBodyToRedaction() throws Exception {
+        assertDoesNotThrow(() -> EmailInputValidator.validate(EmailMessages.pgpEncrypted(), Format.EML, NONE));
     }
 
 }

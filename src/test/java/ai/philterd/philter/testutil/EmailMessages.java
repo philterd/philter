@@ -88,6 +88,11 @@ public final class EmailMessages {
         return bytes(message);
     }
 
+    /** A message whose text body is PGP-encrypted, which only redaction finds. */
+    public static byte[] pgpEncrypted() throws Exception {
+        return eml("Encrypted", "-----BEGIN PGP MESSAGE-----\n\nhQEMA0xvcmVtIGlwc3VtIGRvbG9y\n=abcd\n-----END PGP MESSAGE-----\n");
+    }
+
     private static MimeMessage message(final String subject, final String body) throws Exception {
         final MimeMessage message = new MimeMessage(SESSION);
         message.setFrom(new InternetAddress(FROM, "Avery Sender"));
@@ -124,8 +129,22 @@ public final class EmailMessages {
         return out.toByteArray();
     }
 
+    /** An attachment of an Outlook message. A null type is left out, as Outlook may. */
+    public record MsgAttachment(String name, String type, byte[] data) {
+    }
+
     /** An Outlook message with a subject, sender, one To recipient, a text body, and attachments of the given sizes. */
     public static byte[] msg(final String subject, final String body, final int... attachmentSizes) throws IOException {
+        final MsgAttachment[] attachments = new MsgAttachment[attachmentSizes.length];
+        for (int i = 0; i < attachmentSizes.length; i++) {
+            attachments[i] = new MsgAttachment("file-" + i + ".bin", "application/octet-stream", new byte[attachmentSizes[i]]);
+        }
+        return msgWithAttachments(subject, body, attachments);
+    }
+
+    /** As {@link #msg(String, String, int...)}, with the given attachments. */
+    public static byte[] msgWithAttachments(final String subject, final String body, final MsgAttachment... attachments)
+            throws IOException {
         try (POIFSFileSystem fs = new POIFSFileSystem(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             final DirectoryEntry root = fs.getRoot();
             string(root, 0x001A, "IPM.Note");
@@ -143,11 +162,11 @@ public final class EmailMessages {
             string(recipient, 0x39FE, TO);
             recipient.createDocument("__properties_version1.0", new ByteArrayInputStream(new byte[8]));
 
-            for (int i = 0; i < attachmentSizes.length; i++) {
+            for (int i = 0; i < attachments.length; i++) {
                 final DirectoryEntry attachment = root.createDirectory(String.format("__attach_version1.0_#%08X", i));
-                string(attachment, 0x3707, "file-" + i + ".bin");
-                string(attachment, 0x370E, "application/octet-stream");
-                attachment.createDocument("__substg1.0_37010102", new ByteArrayInputStream(new byte[attachmentSizes[i]]));
+                string(attachment, 0x3707, attachments[i].name());
+                string(attachment, 0x370E, attachments[i].type());
+                attachment.createDocument("__substg1.0_37010102", new ByteArrayInputStream(attachments[i].data()));
                 attachment.createDocument("__properties_version1.0", new ByteArrayInputStream(new byte[8]));
             }
 

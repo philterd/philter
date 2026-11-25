@@ -231,19 +231,68 @@ class EmailMessagesApiIT {
     }
 
     @Test
-    @DisplayName("An encrypted message is refused with 400 and no message, synchronously and queued")
+    @DisplayName("An encrypted message is refused with 400 and no message, queued or not")
     void anEncryptedMessageIsRefused() throws Exception {
-        final HttpResponse<String> refused = redact("?p=ssn-only&async=false", EML, EmailMessages.encrypted());
-        assertEquals(400, refused.statusCode(), refused.body());
-        assertTrue(refused.body().contains("encrypted"), refused.body());
-        assertFalse(refused.body().contains("Subject:"), refused.body());
+        for (final String query : new String[]{"?p=ssn-only&async=false", "?p=ssn-only"}) {
+            final HttpResponse<String> refused = redact(query, EML, EmailMessages.encrypted());
+            assertEquals(400, refused.statusCode(), query + ": " + refused.body());
+            assertTrue(refused.body().contains("encrypted"), refused.body());
+            assertFalse(refused.body().contains("Subject:"), refused.body());
+        }
+    }
 
-        final HttpResponse<String> accepted = redact("?p=ssn-only", EML, EmailMessages.encrypted());
+    @Test
+    @DisplayName("A PGP-encrypted body is refused with 400, or fails its job when queued")
+    void aPgpEncryptedBodyIsRefusedWhenRedacted() throws Exception {
+        final HttpResponse<String> refused = redact("?p=ssn-only&async=false", EML, EmailMessages.pgpEncrypted());
+        assertEquals(400, refused.statusCode(), refused.body());
+        assertTrue(refused.body().contains("PGP"), refused.body());
+
+        final HttpResponse<String> accepted = redact("?p=ssn-only", EML, EmailMessages.pgpEncrypted());
         assertEquals(202, accepted.statusCode(), accepted.body());
         final String documentId = gson.fromJson(accepted.body(), JsonObject.class).get("documentId").getAsString();
         final JsonObject status = awaitStatus(documentId);
         assertEquals("FAILED", status.get("status").getAsString());
-        assertTrue(status.toString().contains("encrypted"), status.toString());
+        assertTrue(status.toString().contains("PGP"), status.toString());
+    }
+
+    @Test
+    @DisplayName("A queued message is redacted with the config.email of the policy version pinned when it was accepted")
+    void aQueuedMessageUsesThePinnedEmailSettings() throws Exception {
+        savePolicy("pinned-email", SSN_POLICY);
+        final HttpResponse<String> accepted = redact("?p=pinned-email", EML, EmailMessages.eml("Hello", TEXT));
+        assertEquals(202, accepted.statusCode(), accepted.body());
+        final String documentId = gson.fromJson(accepted.body(), JsonObject.class).get("documentId").getAsString();
+
+        // The worker polls every 5 seconds, so this lands before the job is claimed.
+        final HttpResponse<String> edited = send(authenticated("/api/policies/pinned-email")
+                .header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString(STRICT_EMAIL_POLICY)).build());
+        assertEquals(200, edited.statusCode(), edited.body());
+
+        assertEquals("COMPLETE", awaitStatus(documentId).get("status").getAsString());
+        final HttpResponse<String> result = send(authenticated("/api/documents/" + documentId).GET().build());
+        assertTrue(result.body().contains("Date:"), "the pinned version keeps the date: " + result.body());
+
+        final HttpResponse<String> now = redact("?p=pinned-email&async=false", EML, EmailMessages.eml("Hello", TEXT));
+        assertFalse(now.body().contains("Date:"), "the edited version removes it: " + now.body());
+    }
+
+    @Test
+    @DisplayName("A message with a PDF attachment under attachments: redact is redacted, and returns its PDF slot")
+    void aPdfAttachmentUnderRedactReturnsItsSlot() throws Exception {
+        savePolicy("redact-attachments", SSN_POLICY.substring(0, SSN_POLICY.length() - 1)
+                + ",\"config\":{\"email\":{\"attachments\":\"redact\"}}}");
+        // Not a readable PDF, so Phileas removes it; it is still taken for a PDF, so it takes a slot.
+        final byte[] message = EmailMessages.emlWithAttachment(TEXT, "scan.pdf", "application/pdf",
+                "%PDF-1.7 damaged".getBytes(StandardCharsets.US_ASCII));
+
+        // More requests than PDF_MAX_CONCURRENT allows at once (2 by default), one after another.
+        for (int i = 0; i < 3; i++) {
+            final HttpResponse<String> response = redact("?p=redact-attachments&async=false", EML, message);
+            assertEquals(200, response.statusCode(), response.body());
+            assertFalse(response.body().contains(SSN), response.body());
+            assertFalse(response.body().contains("scan.pdf"), response.body());
+        }
     }
 
     @Test

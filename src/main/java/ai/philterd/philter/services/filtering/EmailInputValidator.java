@@ -28,7 +28,9 @@ import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.ContentType;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeUtility;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
+import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.Entry;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
@@ -36,6 +38,7 @@ import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Properties;
@@ -46,7 +49,8 @@ import java.util.regex.Pattern;
  * Checks an email body before it is redacted: that it is a message of the declared format, and that it stays within
  * {@code EMAIL_MAX_BYTES}, {@code EMAIL_MAX_ATTACHMENT_BYTES}, {@code EMAIL_MAX_ATTACHMENTS}, and
  * {@code EMAIL_MAX_NESTING_DEPTH}. Attachments are counted in nested messages too, and a nested message counts as
- * one.
+ * one. A message Phileas would refuse as encrypted by its media type is refused here, so a queued one is refused
+ * when it is submitted; a PGP-encrypted body is found only when the message is redacted.
  */
 public final class EmailInputValidator {
 
@@ -71,6 +75,10 @@ public final class EmailInputValidator {
     record Limits(long maxBytes, long maxAttachmentBytes, int maxAttachments, int maxNestingDepth) {
     }
 
+    /** What the check found that redaction needs to know. */
+    public record Inspection(boolean hasPdfAttachment) {
+    }
+
     static final long DEFAULT_MAX_BYTES = 10L * 1024 * 1024;
     static final long DEFAULT_MAX_ATTACHMENT_BYTES = 10L * 1024 * 1024;
     static final int DEFAULT_MAX_ATTACHMENTS = 100;
@@ -84,6 +92,13 @@ public final class EmailInputValidator {
 
     // As Phileas reads a MIME message: every header name is printable ASCII other than the colon, and at least one
     // is a standard message header.
+    // As Phileas's EmailRedactor refuses them.
+    private static final Set<String> ENCRYPTED_TYPES = Set.of("application/pkcs7-mime", "application/x-pkcs7-mime",
+            "multipart/encrypted", "application/pgp-encrypted");
+
+    private static final String PDF = "application/pdf";
+    private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(StandardCharsets.US_ASCII);
+
     private static final Pattern HEADER_NAME = Pattern.compile("[!-9;-~]+");
     private static final Set<String> MESSAGE_HEADERS = Set.of("from", "to", "cc", "bcc", "subject", "date",
             "message-id", "mime-version", "received", "return-path", "sender", "reply-to", "in-reply-to",
@@ -93,6 +108,10 @@ public final class EmailInputValidator {
     private static final String MSG_ATTACHMENT = "__attach_version1.0_#";
     private static final String MSG_ATTACHMENT_DATA = "__substg1.0_37010102";
     private static final String MSG_EMBEDDED_MESSAGE = "__substg1.0_3701000D";
+    // PR_ATTACH_MIME_TAG, and PR_ATTACH_LONG_FILENAME, PR_ATTACH_FILENAME, and PR_DISPLAY_NAME in the order Phileas
+    // takes them, each as a Unicode or 8-bit string.
+    private static final int MSG_MIME_TAG = 0x370E;
+    private static final int[] MSG_NAMES = {0x3707, 0x3704, 0x3001};
 
     private static final Session SESSION = session();
 
@@ -123,12 +142,12 @@ public final class EmailInputValidator {
         return null;
     }
 
-    public static void validate(final byte[] input, final Format declared) {
-        validate(input, declared, LIMITS);
+    public static Inspection validate(final byte[] input, final Format declared) {
+        return validate(input, declared, LIMITS);
     }
 
     /** As {@link #validate(byte[], Format)} with the given limits; 0 or less sets no limit. */
-    static void validate(final byte[] input, final Format declared, final Limits limits) {
+    static Inspection validate(final byte[] input, final Format declared, final Limits limits) {
 
         if (limits.maxBytes() > 0 && input.length > limits.maxBytes()) {
             throw new PayloadTooLargeException("The email message is larger than " + limits.maxBytes()
@@ -142,6 +161,8 @@ public final class EmailInputValidator {
         } else {
             checkMime(input, counter);
         }
+
+        return new Inspection(counter.hasPdfAttachment);
 
     }
 
@@ -163,7 +184,8 @@ public final class EmailInputValidator {
             }
             outlookMessage(root, 0, counter);
         } catch (final IOException | RuntimeException e) {
-            if (e instanceof UnsupportedMediaTypeException || e instanceof PayloadTooLargeException) {
+            if (e instanceof UnsupportedMediaTypeException || e instanceof PayloadTooLargeException
+                    || e instanceof BadRequestException) {
                 throw (RuntimeException) e;
             }
             throw new BadRequestException("The email message is not a readable Outlook message.");
@@ -195,8 +217,56 @@ public final class EmailInputValidator {
                 outlookMessage(embedded, depth + 1, counter);
             } else if (attachment.hasEntry(MSG_ATTACHMENT_DATA)
                     && attachment.getEntry(MSG_ATTACHMENT_DATA) instanceof DocumentEntry data) {
+                final String type = msgString(attachment, MSG_MIME_TAG);
+                if (type != null && ENCRYPTED_TYPES.contains(type.strip().toLowerCase(Locale.ROOT))) {
+                    throw encrypted(type);
+                }
                 counter.attachmentSize(data.getSize());
+                if (!counter.hasPdfAttachment) {
+                    counter.hasPdfAttachment = isPdf(type, msgName(attachment), leadingBytes(data));
+                }
             }
+        }
+    }
+
+    // The first name Phileas would take for an attachment, or null.
+    private static String msgName(final DirectoryEntry attachment) throws IOException {
+        for (final int property : MSG_NAMES) {
+            final String name = msgString(attachment, property);
+            if (name != null && !name.isBlank()) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    // A string property, stored as UTF-16LE (type 001F) or as 8-bit text (001E), or null.
+    private static String msgString(final DirectoryEntry directory, final int property) throws IOException {
+        final String unicode = String.format("__substg1.0_%04X001F", property);
+        final String eightBit = String.format("__substg1.0_%04X001E", property);
+        if (directory.hasEntry(unicode) && directory.getEntry(unicode) instanceof DocumentEntry entry) {
+            return trimNull(new String(read(entry), StandardCharsets.UTF_16LE));
+        }
+        if (directory.hasEntry(eightBit) && directory.getEntry(eightBit) instanceof DocumentEntry entry) {
+            return trimNull(new String(read(entry), StandardCharsets.ISO_8859_1));
+        }
+        return null;
+    }
+
+    private static String trimNull(final String value) {
+        final int end = value.indexOf('\0');
+        return end < 0 ? value : value.substring(0, end);
+    }
+
+    private static byte[] read(final DocumentEntry entry) throws IOException {
+        try (DocumentInputStream in = new DocumentInputStream(entry)) {
+            return in.readAllBytes();
+        }
+    }
+
+    private static byte[] leadingBytes(final DocumentEntry entry) throws IOException {
+        try (DocumentInputStream in = new DocumentInputStream(entry)) {
+            return in.readNBytes(PDF_SIGNATURE.length);
         }
     }
 
@@ -255,6 +325,10 @@ public final class EmailInputValidator {
 
         final String type = baseType(part);
 
+        if (ENCRYPTED_TYPES.contains(type)) {
+            throw encrypted(type);
+        }
+
         if (type.startsWith("multipart/")) {
             if (part.getContent() instanceof Multipart multipart) {
                 for (int i = 0; i < multipart.getCount(); i++) {
@@ -269,9 +343,39 @@ public final class EmailInputValidator {
             }
         } else if (isAttachment(part)) {
             counter.attachment();
-            counter.attachmentSize(decodedSize(part, counter.limits.maxAttachmentBytes()));
+            final byte[] leading = new byte[PDF_SIGNATURE.length];
+            counter.attachmentSize(decodedSize(part, counter.limits.maxAttachmentBytes(), leading));
+            if (!counter.hasPdfAttachment) {
+                counter.hasPdfAttachment = isPdf(type, fileName(part), leading);
+            }
         }
 
+    }
+
+    private static BadRequestException encrypted(final String type) {
+        return new BadRequestException("The email message's content is encrypted or wrapped (" + type
+                + ") and cannot be read, so it was not redacted.");
+    }
+
+    // As Phileas recognizes a PDF attachment, by its media type, its filename, or its content. Taking a message
+    // for one when Phileas would not only costs a PDF slot.
+    private static boolean isPdf(final String type, final String fileName, final byte[] leading) {
+        if (type != null && PDF.equalsIgnoreCase(type.strip())) {
+            return true;
+        }
+        if (fileName != null && fileName.strip().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            return true;
+        }
+        return leading != null && java.util.Arrays.equals(leading, PDF_SIGNATURE);
+    }
+
+    private static String fileName(final Part part) {
+        try {
+            final String fileName = part.getFileName();
+            return fileName == null ? null : MimeUtility.decodeText(fileName);
+        } catch (final MessagingException | IOException e) {
+            return null;
+        }
     }
 
     private static String baseType(final Part part) {
@@ -291,14 +395,18 @@ public final class EmailInputValidator {
         }
     }
 
-    // Reads no further than one byte past the limit. An encoding that cannot be decoded is measured as sent.
-    private static long decodedSize(final Part part, final long limit) throws MessagingException {
-        if (limit <= 0) {
-            return 0;
-        }
+    /*
+     * Reads no further than one byte past the limit, or with no limit only the leading bytes, which it copies to
+     * {@code leading}. An encoding that cannot be decoded is measured as sent.
+     */
+    private static long decodedSize(final Part part, final long limit, final byte[] leading) throws MessagingException {
         try (InputStream in = part.getInputStream()) {
+            final int first = in.readNBytes(leading, 0, leading.length);
+            if (limit <= 0) {
+                return 0;
+            }
             final byte[] buffer = new byte[8192];
-            long total = 0;
+            long total = first;
             int read;
             while (total <= limit && (read = in.read(buffer)) != -1) {
                 total += read;
@@ -320,6 +428,7 @@ public final class EmailInputValidator {
 
         private final Limits limits;
         private int attachments;
+        private boolean hasPdfAttachment;
 
         Counter(final Limits limits) {
             this.limits = limits;

@@ -88,7 +88,7 @@ Other headers are kept as they are. Under the default `attachments: keep`, an at
 Limitations:
 
 *   A signed message (S/MIME or PGP) is redacted and its signature is removed, since redacting the message invalidates it.
-*   An encrypted message cannot be read, so it is refused with `400 Bad Request` and a message saying so, and nothing is returned. A queued encrypted message fails with that message.
+*   An encrypted message cannot be read, so it is refused with `400 Bad Request` and a message saying so, and nothing is returned. An S/MIME or PGP/MIME encrypted message is refused when it is submitted, queued or not. A message whose body is PGP-encrypted text is found only when it is redacted, so if it was queued, its job fails with that message.
 *   Philter does not report which attachments or inline images were kept uninspected, or which were removed under `redact` because they could not be redacted.
 
 A body declared as `application/vnd.ms-outlook` must be an Outlook message: a legacy Word or Excel file, which shares its container format, is refused with `415 Unsupported Media Type`. A body declared as `message/rfc822` must parse as a MIME message with a block of message headers, and is refused with `415` otherwise. A message larger than [`EMAIL_MAX_BYTES`](../settings.md#redaction-engine), with an attachment larger than `EMAIL_MAX_ATTACHMENT_BYTES`, with more than `EMAIL_MAX_ATTACHMENTS` attachments, or with messages nested more than `EMAIL_MAX_NESTING_DEPTH` deep is refused with `413 Payload Too Large` before redaction starts.

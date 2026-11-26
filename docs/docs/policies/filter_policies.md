@@ -131,11 +131,11 @@ In the check, the policy's filters run without their own ignore lists and strate
 
 The result:
 
-* The response has the header `X-Philter-Leftovers` with the number of findings, including `0`. When the output has no readable text, such as a PDF whose redacted pages were flattened to images, it is `not-checked` instead: nothing was checked. The header is absent when the check did not run.
+* The response has the header `X-Philter-Leftovers` with the number of findings, including `0`. It is `not-checked` instead when nothing was checked: the output has no readable text, such as a PDF whose redacted pages were flattened to images, or the check failed with an error. Either way the redacted output is returned as usual. The header is absent when the check was not called for.
 * When there is at least one finding, `X-Philter-Review` includes `leftovers`, alongside `sampled` when the request was also [sampled](#sampling-requests-for-review), for example `X-Philter-Review: sampled, leftovers`.
-* The `/api/explain` body has `leftoverCheck`: whether it was `performed`, the `findingCount`, and each finding's `filterType`, `characterStart` and `characterEnd` in `filteredText`, and `confidence`.
+* The `/api/explain` body has `leftoverCheck`: whether it was `performed`, and when not, the `reason` (`unreadableOutput` or `checkFailed`), the `findingCount`, and each finding's `filterType`, `characterStart` and `characterEnd` in `filteredText`, and `confidence`.
 * An asynchronous document is checked when it is redacted, after the `202 Accepted` response, so the headers are on its [status and download](../api_and_sdks/api/documents_api.md) responses.
-* For an email message, the check covers its redacted fields and its redacted attachments. `X-Philter-Email-Report` includes `unchecked-attachments=N` for redacted attachments whose output could not be read. Kept attachments are not checked. See [Email messages](../redaction/redacting_documents.md#email-messages).
+* For an email message, the check covers its redacted fields and its redacted attachments. `X-Philter-Email-Report` includes `unchecked-attachments=N` for redacted attachments whose output could not be read or whose own check failed. Kept attachments are not checked. See [Email messages](../redaction/redacting_documents.md#email-messages).
 * The [audit log](../auditing.md) records a `redaction_leftovers_found` event for each request with findings, and the `philter_leftover_checks_total` and `philter_leftover_findings_total` [metrics](../monitoring_and_logging.md) count checks and findings.
 
 No header, log line, audit record, or metric contains a finding's text.

@@ -26,16 +26,17 @@ public class ApiDocumentationConfig {
             + "sampled; leftovers is on its status and download responses. A response without it has not been checked by "
             + "anyone: it still needs validating.";
     private static final String LEFTOVERS = ai.philterd.philter.services.filtering.ResultHeaders.LEFTOVERS;
-    private static final String LEFTOVERS_DESCRIPTION = "Present when the policy's leftover check ran: the number of "
-            + "values still detectable in the redacted output, or not-checked when the output has no readable text, such "
-            + "as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive "
-            + "information. Never contains a finding's text.";
+    private static final String LEFTOVERS_DESCRIPTION = "Present when the policy's leftover check was called for: the number of "
+            + "values still detectable in the redacted output, or not-checked when nothing was checked: the output has no "
+            + "readable text, such as a PDF whose redacted pages were flattened to images, or the check failed. The "
+            + "redacted output is returned either way. 0 does not mean the output is free of sensitive information. Never "
+            + "contains a finding's text.";
     private static final String EMAIL_REPORT = ai.philterd.philter.services.filtering.ResultHeaders.EMAIL_REPORT;
     private static final String EMAIL_REPORT_DESCRIPTION = "Email messages only: counts of attachments and inline images "
             + "kept without being inspected, attachments removed under attachments: redact because they could not be "
             + "redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, "
             + "removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check "
-            + "ran. No filenames.";
+            + "ran, counting redacted attachments whose output could not be read or whose own check failed. No filenames.";
 
     @Bean
     public OpenApiCustomizer apiWireContracts() {
@@ -116,7 +117,9 @@ public class ApiDocumentationConfig {
                             "policyVersion", new IntegerSchema(), "policyContentHash", new StringSchema(),
                             "reviewSampled", new io.swagger.v3.oas.models.media.BooleanSchema(),
                             "leftoverCheck", object("performed", new BooleanSchema(), "reason", new StringSchema()
-                                            .description("Why the check did not run: unreadableOutput."),
+                                            .description("Why the check did not run: unreadableOutput (the output has no "
+                                                    + "readable text) or checkFailed (the check failed with an error; "
+                                                    + "the redacted output is returned unaffected)."),
                                     "findingCount", new IntegerSchema(),
                                     "findings", new ArraySchema().items(object("filterType", new StringSchema(),
                                             "classification", new StringSchema(), "characterStart", new IntegerSchema(),

@@ -3892,13 +3892,13 @@
                 }
               },
               "X-Philter-Email-Report": {
-                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran, counting redacted attachments whose output could not be read or whose own check failed. No filenames.",
                 "schema": {
                   "type": "string"
                 }
               },
               "X-Philter-Leftovers": {
-                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
+                "description": "Present when the policy's leftover check was called for: the number of values still detectable in the redacted output, or not-checked when nothing was checked: the output has no readable text, such as a PDF whose redacted pages were flattened to images, or the check failed. The redacted output is returned either way. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
                 "schema": {
                   "type": "string"
                 }
@@ -4116,13 +4116,13 @@
             },
             "headers": {
               "X-Philter-Email-Report": {
-                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran, counting redacted attachments whose output could not be read or whose own check failed. No filenames.",
                 "schema": {
                   "type": "string"
                 }
               },
               "X-Philter-Leftovers": {
-                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
+                "description": "Present when the policy's leftover check was called for: the number of values still detectable in the redacted output, or not-checked when nothing was checked: the output has no readable text, such as a PDF whose redacted pages were flattened to images, or the check failed. The redacted output is returned either way. 0 does not mean the output is free of sensitive information. Never contains a finding's text. Only once the document is COMPLETE.",
                 "schema": {
                   "type": "string"
                 }
@@ -4403,7 +4403,7 @@
                           "type": "boolean"
                         },
                         "reason": {
-                          "description": "Why the check did not run: unreadableOutput.",
+                          "description": "Why the check did not run: unreadableOutput (the output has no readable text) or checkFailed (the check failed with an error; the redacted output is returned unaffected).",
                           "type": "string"
                         }
                       }
@@ -4440,7 +4440,7 @@
                 }
               },
               "X-Philter-Leftovers": {
-                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
+                "description": "Present when the policy's leftover check was called for: the number of values still detectable in the redacted output, or not-checked when nothing was checked: the output has no readable text, such as a PDF whose redacted pages were flattened to images, or the check failed. The redacted output is returned either way. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
                 "schema": {
                   "type": "string"
                 }
@@ -4789,13 +4789,13 @@
                 }
               },
               "X-Philter-Email-Report": {
-                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran. No filenames.",
+                "description": "Email messages only: counts of attachments and inline images kept without being inspected, attachments removed under attachments: redact because they could not be redacted, and dropped signatures, as uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran, counting redacted attachments whose output could not be read or whose own check failed. No filenames.",
                 "schema": {
                   "type": "string"
                 }
               },
               "X-Philter-Leftovers": {
-                "description": "Present when the policy's leftover check ran: the number of values still detectable in the redacted output, or not-checked when the output has no readable text, such as a PDF whose redacted pages were flattened to images. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
+                "description": "Present when the policy's leftover check was called for: the number of values still detectable in the redacted output, or not-checked when nothing was checked: the output has no readable text, such as a PDF whose redacted pages were flattened to images, or the check failed. The redacted output is returned either way. 0 does not mean the output is free of sensitive information. Never contains a finding's text.",
                 "schema": {
                   "type": "string"
                 }

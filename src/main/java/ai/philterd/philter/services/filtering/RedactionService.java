@@ -641,13 +641,14 @@ public class RedactionService {
      * Counts each check by its outcome and each finding by its type, and records a redaction_leftovers_found audit
      * event when the check found anything. Neither carries a finding's text or a policy name.
      */
-    private void recordLeftoverCheck(final String requestId, final String userId, final String documentId,
-                                     final AppliedPolicy appliedPolicy, final LeftoverCheckResult check) {
-        if (check == null || (!check.isPerformed() && check.getReason() != LeftoverCheckResult.Reason.UNREADABLE_OUTPUT)) {
+    void recordLeftoverCheck(final String requestId, final String userId, final String documentId,
+                             final AppliedPolicy appliedPolicy, final LeftoverCheckResult check) {
+        if (ResultHeaders.notChecked(check)) {
+            meterRegistry.counter("philter.leftover.checks", "outcome", "not_checked").increment();
             return;
         }
-        if (!check.isPerformed()) {
-            meterRegistry.counter("philter.leftover.checks", "outcome", "not_checked").increment();
+        // Not called for: nothing to count.
+        if (check == null || !check.isPerformed()) {
             return;
         }
         final boolean found = check.getFindingCount() > 0;

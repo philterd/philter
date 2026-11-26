@@ -17,6 +17,7 @@ package ai.philterd.philter.services.filtering;
 
 import ai.philterd.phileas.model.filtering.Explanation;
 import ai.philterd.phileas.model.filtering.FilterType;
+import ai.philterd.phileas.model.filtering.LeftoverCheckResult;
 import ai.philterd.phileas.model.filtering.Span;
 import ai.philterd.phileas.model.filtering.TextFilterResult;
 import ai.philterd.philter.audit.AuditEventPublisher;
@@ -119,6 +120,34 @@ class RedactionServiceMetricsTest {
         // With no applied spans there are no per-filter-type counters.
         assertNull(meterRegistry.find("philter.redactions").counter());
         assertEquals(0, meterRegistry.find("philter.redactions").counters().size());
+    }
+
+    private double leftoverChecks(final String outcome) {
+        final Counter counter = meterRegistry.find("philter.leftover.checks").tag("outcome", outcome).counter();
+        return counter == null ? 0 : counter.count();
+    }
+
+    @Test
+    void aCheckThatCheckedNothingIsCountedAsNotChecked() {
+        final AppliedPolicy policy = new AppliedPolicy("default", 0, "hash");
+        redactionService.recordLeftoverCheck("request", "user", "doc", policy,
+                LeftoverCheckResult.notPerformed(LeftoverCheckResult.Reason.CHECK_FAILED));
+        redactionService.recordLeftoverCheck("request", "user", "doc", policy,
+                LeftoverCheckResult.notPerformed(LeftoverCheckResult.Reason.UNREADABLE_OUTPUT));
+
+        assertEquals(2.0, leftoverChecks("not_checked"));
+        assertEquals(0.0, leftoverChecks("found") + leftoverChecks("none_found"));
+        org.mockito.Mockito.verifyNoInteractions(auditEventPublisher);
+    }
+
+    @Test
+    void aCheckNotCalledForIsNotCounted() {
+        final AppliedPolicy policy = new AppliedPolicy("default", 0, "hash");
+        redactionService.recordLeftoverCheck("request", "user", "doc", policy,
+                LeftoverCheckResult.notPerformed(LeftoverCheckResult.Reason.NOT_REQUESTED));
+        redactionService.recordLeftoverCheck("request", "user", "doc", policy, null);
+
+        assertNull(meterRegistry.find("philter.leftover.checks").counter());
     }
 
 }

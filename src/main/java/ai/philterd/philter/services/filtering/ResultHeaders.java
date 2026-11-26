@@ -29,7 +29,10 @@ import java.util.List;
  */
 public final class ResultHeaders {
 
-    /** The number of leftover findings, or {@link #NOT_CHECKED}. Absent when the check did not run. */
+    /**
+     * The number of leftover findings, or {@link #NOT_CHECKED} when the check was called for but checked nothing.
+     * Absent when the check was not called for.
+     */
     public static final String LEFTOVERS = "X-Philter-Leftovers";
     public static final String NOT_CHECKED = "not-checked";
 
@@ -43,7 +46,7 @@ public final class ResultHeaders {
     private ResultHeaders() {
     }
 
-    /** The {@link #LEFTOVERS} value for a result, or null when the check did not run. */
+    /** The {@link #LEFTOVERS} value for a result, or null when the check was not called for. */
     public static String leftovers(final AbstractFilterResult result) {
         final LeftoverCheckResult check = result == null ? null : result.getLeftoverCheck();
         if (check == null) {
@@ -52,7 +55,16 @@ public final class ResultHeaders {
         if (check.isPerformed()) {
             return Integer.toString(check.getFindingCount());
         }
-        return check.getReason() == LeftoverCheckResult.Reason.UNREADABLE_OUTPUT ? NOT_CHECKED : null;
+        return notChecked(check) ? NOT_CHECKED : null;
+    }
+
+    /**
+     * Whether the check was called for but checked nothing: the output had no readable text, or the check failed
+     * and the redaction was returned without it. Any reason other than not requested counts, so a reason added
+     * later is reported as not checked rather than hidden.
+     */
+    public static boolean notChecked(final LeftoverCheckResult check) {
+        return check != null && !check.isPerformed() && check.getReason() != LeftoverCheckResult.Reason.NOT_REQUESTED;
     }
 
     /** Whether a {@link #LEFTOVERS} value reports findings. */
@@ -69,7 +81,8 @@ public final class ResultHeaders {
 
     /**
      * The {@link #EMAIL_REPORT} value for an email message's result, or null for any other result. When the leftover
-     * check ran, it also counts the redacted attachments the check could not read.
+     * check ran, it also counts the redacted attachments it could not check: those whose output could not be read,
+     * and those whose own check failed.
      */
     public static String emailReport(final AbstractFilterResult result) {
         if (!(result instanceof BinaryDocumentFilterResult binary) || binary.getEmail() == null) {

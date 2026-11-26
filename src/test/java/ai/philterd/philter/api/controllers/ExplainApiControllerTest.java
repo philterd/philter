@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -130,6 +131,30 @@ class ExplainApiControllerTest {
         // The applied policy name and version are surfaced as top-level fields.
         assertTrue(body.contains("\"policyName\":\"default\""), "response must include policyName; was: " + body);
         assertTrue(body.contains("\"policyVersion\":9"), "response must include policyVersion; was: " + body);
+    }
+
+    @Test
+    void explainReportsALeftoverCheckThatFailed() throws Exception {
+        final TextFilterResult result = new TextFilterResult("Redacted.", "none", 0,
+                new Explanation(Collections.emptyList(), Collections.emptyList()), Collections.emptyList(), 1, false,
+                ai.philterd.phileas.model.filtering.LeftoverCheckResult.notPerformed(
+                        ai.philterd.phileas.model.filtering.LeftoverCheckResult.Reason.CHECK_FAILED));
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
+                .thenReturn(new RedactionOutcome("doc-explain", result, new AppliedPolicy("default", 1, "hash")));
+
+        final var response = mockMvc.perform(request(HttpMethod.POST, "/api/explain")
+                        .header("Authorization", AUTH_HEADER)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("John was here"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse();
+
+        final com.google.gson.JsonObject leftoverCheck = new Gson().fromJson(response.getContentAsString(),
+                com.google.gson.JsonObject.class).getAsJsonObject("leftoverCheck");
+        assertFalse(leftoverCheck.get("performed").getAsBoolean(), leftoverCheck.toString());
+        assertEquals("checkFailed", leftoverCheck.get("reason").getAsString(), leftoverCheck.toString());
+        assertEquals("not-checked", response.getHeader("X-Philter-Leftovers"));
+        assertNull(response.getHeader("X-Philter-Review"));
     }
 
     private void stubFilter() throws Exception {

@@ -22,7 +22,7 @@ Philter exposes the following counters and gauges, in addition to the standard J
 |--------|-------------|
 | `philter_redactions_total` | Total redactions performed, labeled by `filter_type`. |
 | `philter_tokens_total` | Total tokens processed during redaction. |
-| `philter_leftover_checks_total` | [Leftover checks](policies/filter_policies.md#leftover-check) run, labeled by `outcome`: `none_found`, `found`, or `not_checked` (the output had no readable text). |
+| `philter_leftover_checks_total` | [Leftover checks](policies/filter_policies.md#leftover-check) run, labeled by `outcome`: `none_found`, `found`, or `not_checked` (nothing was checked: the output had no readable text, or the check failed, which is also logged as a warning naming the error's type). |
 | `philter_leftover_findings_total` | Values the leftover check found still detectable, labeled by `filter_type`. |
 | `philter_api_requests_total` | Total API requests, labeled by `method` and `status`. |
 | `philter_async_queue_jobs` | Gauge: asynchronous document jobs currently pending or processing, across all accounts. |

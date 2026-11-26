@@ -122,6 +122,26 @@ class RedactionWorkerTest {
     }
 
     @Test
+    void aJobWhoseLeftoverCheckFailedIsStoredAsNotChecked() throws Exception {
+        final PendingDocumentEntity job = pdfJob();
+        final BinaryDocumentFilterResult result = new BinaryDocumentFilterResult("redacted-pdf".getBytes(), "none",
+                new Explanation(Collections.emptyList(), Collections.emptyList()), 0L, Collections.emptyList(), false,
+                ai.philterd.phileas.model.filtering.LeftoverCheckResult.notPerformed(
+                        ai.philterd.phileas.model.filtering.LeftoverCheckResult.Reason.CHECK_FAILED));
+
+        when(pendingDocumentDataService.claimNextPending(any())).thenReturn(job, (PendingDocumentEntity) null);
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
+                .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return outcome(result); });
+
+        worker.poll();
+
+        final ArgumentCaptor<PendingDocumentDataService.ResultReport> report =
+                ArgumentCaptor.forClass(PendingDocumentDataService.ResultReport.class);
+        verify(pendingDocumentDataService).markComplete(eq(job.getId()), any(), eq(job.getClaimToken()), any(), report.capture());
+        assertEquals(ResultHeaders.NOT_CHECKED, report.getValue().leftovers());
+    }
+
+    @Test
     void aPdfOverTheLimitsKeepsItsReason() throws Exception {
         final PendingDocumentEntity job = pdfJob();
 

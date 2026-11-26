@@ -201,6 +201,27 @@ class DocumentsApiControllerTest {
     }
 
     @Test
+    void aDocumentNotCheckedSaysSoOnItsStatusAndDownload() throws Exception {
+        final String documentId = "doc-not-checked";
+        final PendingDocumentEntity entity = new PendingDocumentEntity();
+        entity.setDocumentId(documentId);
+        entity.setStatus(PendingDocumentEntity.STATUS_COMPLETE);
+        entity.setOutputMimeType("application/pdf");
+        entity.setOutput("redacted".getBytes());
+        entity.setLeftovers(ai.philterd.philter.services.filtering.ResultHeaders.NOT_CHECKED);
+        when(pendingDocumentDataService.findOneByDocumentIdAndUserId(documentId, userId)).thenReturn(entity);
+
+        for (final String path : List.of("/api/documents/" + documentId + "/status", "/api/documents/" + documentId)) {
+            mockMvc.perform(get(path).header("Authorization", AUTH_HEADER))
+                    .andExpect(status().isOk())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                            .string("X-Philter-Leftovers", "not-checked"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                            .doesNotExist("X-Philter-Review"));
+        }
+    }
+
+    @Test
     void deleteQueriesByOwningUserId() throws Exception {
         final String documentId = "doc-3";
         when(pendingDocumentDataService.deleteByDocumentIdAndUserId(documentId, userId)).thenReturn(1L);

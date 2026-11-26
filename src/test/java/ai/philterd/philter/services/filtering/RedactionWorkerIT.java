@@ -89,7 +89,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     private void stubRedactionReturns(final byte[] output) throws Exception {
         final BinaryDocumentFilterResult result = mock(BinaryDocumentFilterResult.class);
         when(result.getDocument()).thenReturn(output);
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return new RedactionOutcome("doc-worker", result, new AppliedPolicy("default", 0, "hash")); });
     }
 
@@ -111,7 +111,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         // The job's policy, input, filename and document id all reach the service.
         final ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
         verify(redactionService).filter(eq("default"), eq(user), eq(""), body.capture(),
-                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"), any());
+                eq(MimeType.APPLICATION_PDF), any(), eq("invoice-42.pdf"), eq("doc-1"), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
         assertArrayEquals(new byte[]{1, 2, 3}, body.getValue());
     }
 
@@ -121,7 +121,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
         // An internal failure's message names internal detail, such as the model service's host and port.
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new RuntimeException("Connect to http://ph-eye.internal:5000 failed: Connection refused"));
 
         worker.poll();
@@ -137,7 +137,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final String user = MongoIds.newId();
         pendingDocumentDataService.save(newPending(user, "doc-1"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new ai.philterd.philter.services.policies.PolicyResolutionException("Context does not exist."));
 
         worker.poll();
@@ -150,7 +150,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
     @Test
     void pollDoesNothingWhenQueueIsEmpty() throws Exception {
         worker.poll();
-        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(redactionService, never()).filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class));
     }
 
     @Test
@@ -218,7 +218,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final String user = MongoIds.newId();
         userWithWebhook(user);
         pendingDocumentDataService.save(newPending(user, "doc-1"));
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new RuntimeException("boom"));
 
         worker.poll();
@@ -255,7 +255,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         pendingDocumentDataService.save(newPending(user, "doc-bad"));
         pendingDocumentDataService.save(newPending(user, "doc-good"));
 
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenThrow(new RuntimeException("boom"))
                 .thenAnswer(invocation -> { invocation.getArgument(8, Runnable.class).run(); return new RedactionOutcome("doc-good", binaryResultReturning(new byte[]{7}),
                         new AppliedPolicy("default", 0, "hash")); });
@@ -285,7 +285,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
         final var entered = new java.util.concurrent.CountDownLatch(1);
         final var resume = new java.util.concurrent.CountDownLatch(1);
         final var publications = new java.util.concurrent.atomic.AtomicInteger();
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenAnswer(invocation -> {
                     entered.countDown();
                     assertTrue(resume.await(10, java.util.concurrent.TimeUnit.SECONDS));
@@ -303,7 +303,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
                         new org.bson.Document("document_id", "race-doc"),
                         new org.bson.Document("$set", new org.bson.Document("claim_expires_at", new Date(0))));
                 final var newPipeline = mock(RedactionService.class);
-                when(newPipeline.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                when(newPipeline.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                         .thenAnswer(invocation -> {
                             invocation.getArgument(8, Runnable.class).run();
                             publications.incrementAndGet();
@@ -338,7 +338,7 @@ class RedactionWorkerIT extends AbstractMongoIT {
             if (accepted) renewed.countDown();
             return accepted;
         }).when(service).renewClaim(any(), any());
-        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(redactionService.filter(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ai.philterd.phileas.services.filters.filtering.FilterOptions.class)))
                 .thenAnswer(invocation -> {
                     assertTrue(renewed.await(5, java.util.concurrent.TimeUnit.SECONDS));
                     invocation.getArgument(8, Runnable.class).run();

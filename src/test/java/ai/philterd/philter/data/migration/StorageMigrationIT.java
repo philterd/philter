@@ -327,7 +327,7 @@ class StorageMigrationIT {
         final var migrated = mongo.auditLog().find(null, AuditLogEvent.STORAGE_MIGRATED.getAuditLogEvent(), null, null, 0, 10);
         assertEquals(1, migrated.size());
         assertTrue(migrated.get(0).details().contains("source: " + sqlitePath), migrated.get(0).details());
-        assertEquals(2, new Document(mongoClient.getDatabase("philter").getCollection("schema_version")
+        assertEquals(3, new Document(mongoClient.getDatabase("philter").getCollection("schema_version")
                 .find(new Document("_id", "version")).first()).getInteger("version"));
 
     }

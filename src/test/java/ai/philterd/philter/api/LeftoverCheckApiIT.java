@@ -269,6 +269,18 @@ class LeftoverCheckApiIT {
         final String wordId = await(word);
         assertFound(send(authenticated(apiKey, "/api/documents/" + wordId + "/status").GET().build()));
         assertFound(send(authenticated(apiKey, "/api/documents/" + wordId).GET().build()));
+        // Checked by the worker, so its audit record is keyed by the document ID.
+        final HttpResponse<String> events = send(authenticated(adminKey,
+                "/api/audit?event=redaction_leftovers_found&limit=1000").GET().build());
+        int recorded = 0;
+        for (final JsonElement event : gson.fromJson(events.body(), JsonObject.class).getAsJsonArray("events")) {
+            final JsonObject e = event.getAsJsonObject();
+            if (e.has("requestId") && !e.get("requestId").isJsonNull() && wordId.equals(e.get("requestId").getAsString())) {
+                assertTrue(e.get("details").getAsString().contains("documentId: " + wordId), e.toString());
+                recorded++;
+            }
+        }
+        assertEquals(1, recorded, events.body());
 
         final HttpResponse<String> unchecked = post("/api/filter?p=on-request", DOCX, DOCX, OfficeDocuments.docx(TEXT));
         final String uncheckedId = await(unchecked);

@@ -39,6 +39,7 @@ import ai.philterd.philter.model.ServiceResponse;
 import ai.philterd.philter.testutil.EmailMessages;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import ai.philterd.philter.testutil.OfficeDocuments;
+import ai.philterd.philter.testutil.RtfDocuments;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -553,7 +554,7 @@ class ApiFilterChainIT {
                     request.header("Accept", mapping.produces()[0]);
                 }
 
-                // ContentTypeVerifyingFilter inspects the bytes, so a PDF, Word, Excel, or email endpoint needs a real
+                // ContentTypeVerifyingFilter inspects the bytes, so a PDF, Word, Excel, RTF, or email endpoint needs a real
                 // document to get far enough to be refused for the right reason.
                 final HttpRequest.BodyPublisher body = "GET".equals(httpMethod) || "DELETE".equals(httpMethod)
                         ? HttpRequest.BodyPublishers.noBody()
@@ -567,7 +568,9 @@ class ApiFilterChainIT {
                                                         ? HttpRequest.BodyPublishers.ofByteArray(EmailMessages.eml("Hello", "text"))
                                                         : FilterApiController.MSG.equals(consumes)
                                                                 ? HttpRequest.BodyPublishers.ofByteArray(EmailMessages.msg("Hello", "text"))
-                                                                : HttpRequest.BodyPublishers.ofString("{}");
+                                                                : FilterApiController.RTF.equals(consumes)
+                                                                        ? HttpRequest.BodyPublishers.ofByteArray(RtfDocuments.rtf("text"))
+                                                                        : HttpRequest.BodyPublishers.ofString("{}");
 
                 final HttpResponse<String> response = send(request.method(httpMethod, body).build());
                 checked++;

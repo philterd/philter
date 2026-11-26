@@ -18,6 +18,7 @@ package ai.philterd.philter.api.filters.content;
 import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
 import ai.philterd.philter.testutil.EmailMessages;
 import ai.philterd.philter.testutil.OfficeDocuments;
+import ai.philterd.philter.testutil.RtfDocuments;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -312,6 +313,44 @@ class ContentTypeVerifyingFilterTest {
         assertEquals(DocumentType.UNKNOWN, DocumentType.detect(TEXT));
         assertEquals(DocumentType.UNKNOWN, DocumentType.detect(new byte[0]));
         assertEquals(DocumentType.UNKNOWN, DocumentType.detect(null));
+    }
+
+    @Test
+    void rtfDeclaredAsRtfPassesIntact() throws Exception {
+        final byte[] rtf = RtfDocuments.rtf("Hello.");
+        final byte[][] seen = new byte[1][];
+        for (final String contentType : new String[]{"application/rtf", "text/rtf", "application/rtf; charset=US-ASCII"}) {
+            assertNull(filter("/api/filter", contentType, rtf, seen), contentType);
+            assertArrayEquals(rtf, seen[0], contentType);
+        }
+    }
+
+    @Test
+    void rtfDeclaredAsAnythingElseIsRefused() throws Exception {
+        final byte[] rtf = RtfDocuments.rtf("Hello.");
+        // Text had no way to tell RTF apart, so it was redacted as text and missed escaped values.
+        final Exception asText = filter("/api/filter", "text/plain", rtf, null);
+        assertInstanceOf(UnsupportedMediaTypeException.class, asText);
+        assertTrue(asText.getMessage().contains("RTF document"), asText.getMessage());
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/explain", "text/plain", rtf, null));
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "application/pdf", rtf, null));
+        assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "message/rfc822", rtf, null));
+    }
+
+    @Test
+    void aBodyThatIsNotRtfDeclaredAsRtfIsRefused() throws Exception {
+        for (final byte[] body : new byte[][]{TEXT, PDF, OfficeDocuments.docx("text")}) {
+            assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "application/rtf", body, null));
+            assertInstanceOf(UnsupportedMediaTypeException.class, filter("/api/filter", "text/rtf", body, null));
+        }
+    }
+
+    @Test
+    void rtfOverTheNestingLimitOrMalformedIsRefused() throws Exception {
+        assertInstanceOf(ai.philterd.philter.api.exceptions.PayloadTooLargeException.class,
+                filter("/api/filter", "application/rtf", RtfDocuments.nested(100, "x"), null));
+        assertInstanceOf(ai.philterd.philter.api.exceptions.BadRequestException.class,
+                filter("/api/filter", "application/rtf", RtfDocuments.bytes("{\\rtf1 {\\b unclosed"), null));
     }
 
 }

@@ -1,6 +1,6 @@
 # Documents API
 
-The Documents API exposes the lifecycle of asynchronously-submitted PDF, Word, Excel, and email redactions. When one of these is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
+The Documents API exposes the lifecycle of asynchronously-submitted PDF, Word, Excel, RTF, and email redactions. When one of these is submitted to `POST /api/filter` without `?async=false`, Philter persists the request, returns `202 Accepted` with a `documentId`, and processes it on a background worker. Use the endpoints below to track and retrieve the result.
 
 A document the policy's [review sampling rate](../../policies/filter_policies.md#sampling-requests-for-review) selects for human spot review is selected when it is accepted: the `202 Accepted` response carries `X-Philter-Review: sampled`, and the status and download responses do not, so keep that header with the `documentId` if you route selected documents to a reviewer.
 

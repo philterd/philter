@@ -22,6 +22,7 @@ import ai.philterd.philter.api.exceptions.UnsupportedMediaTypeException;
 import ai.philterd.philter.api.filters.RequestPaths;
 import ai.philterd.philter.services.filtering.EmailInputValidator;
 import ai.philterd.philter.services.filtering.OfficeInputValidator;
+import ai.philterd.philter.services.filtering.RtfInputValidator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +58,8 @@ import java.util.Set;
  *
  * <p>A text body is checked for one more case: an email message with encoded or multipart content, whose
  * encoded values no filter would match (see {@link EncodedEmailDetector}). Only the start of the body is read.
+ *
+ * <p>An RTF body is read in full too, and checked to be RTF Phileas can read, within the RTF limits.
  *
  * <p>Detection is unconditional. Comparing eight bytes costs on the order of a nanosecond, so there
  * is nothing to gain by making it configurable.
@@ -96,6 +99,9 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
             final EmailInputValidator.Format email = EmailInputValidator.declaredFormat(declared);
             if (email != null) {
                 EmailInputValidator.validate(wrapped.readBody(), email);
+            }
+            if (RtfInputValidator.isDeclared(declared)) {
+                RtfInputValidator.validate(wrapped.readBody());
             }
             if (isDeclaredText(declared)) {
                 refuseEncodedEmail(wrapped.peek(EncodedEmailDetector.SCAN_LIMIT));
@@ -153,6 +159,14 @@ public class ContentTypeVerifyingFilter extends OncePerRequestFilter {
                     + " but the body is " + detected.getDescription() + ".");
         }
         if (email != null) {
+            return;
+        }
+
+        if (RtfInputValidator.isDeclared(declared)) {
+            if (detected != DocumentType.RTF) {
+                throw new UnsupportedMediaTypeException("The request declares RTF but the body is "
+                        + detected.getDescription() + ".");
+            }
             return;
         }
 

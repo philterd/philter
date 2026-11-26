@@ -139,9 +139,11 @@ class OpenApiExportIT {
             final JsonObject filtering = paths.getAsJsonObject("/api/filter").getAsJsonObject("post");
             assertEquals(java.util.Set.of("application/pdf", "application/zip", "text/plain",
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "message/rfc822"), filtering
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/rtf", "message/rfc822"), filtering
                     .getAsJsonObject("responses").getAsJsonObject("200").getAsJsonObject("content").keySet());
             assertTrue(filtering.getAsJsonObject("requestBody").getAsJsonObject("content").has("application/vnd.ms-outlook"));
+            assertTrue(filtering.getAsJsonObject("requestBody").getAsJsonObject("content").has("application/rtf"));
+            assertTrue(filtering.getAsJsonObject("requestBody").getAsJsonObject("content").has("text/rtf"));
             assertTrue(filtering.getAsJsonObject("responses").has("406"));
             assertTrue(filtering.getAsJsonObject("responses").getAsJsonObject("202").getAsJsonObject("content").has("application/json"));
             assertTrue(schemas.getAsJsonObject("GetRedactionStatusResponse").getAsJsonObject("properties").has("effectiveConfigurationHash"));

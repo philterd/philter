@@ -92,7 +92,7 @@
         <sqlite-jdbc.version>3.54.1.0</sqlite-jdbc.version>
         <skipSqliteITs>false</skipSqliteITs>
         <!-- The integration tests run with SQLite storage: those that reach storage only through Philter's API. -->
-        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT,ModelsApiIT,CrossOriginResourcePolicyIT,OfficeDocumentsApiIT,EmailMessagesApiIT,LeftoverCheckApiIT,PdfPagePoliciesApiIT,PdfLedgerApiIT,ManagedPolicyFilterApiIT</sqlite.it.test>
+        <sqlite.it.test>ApplicationSmokeIT,StorageFlowsApiIT,AuditApiIT,PoliciesApiIT,AllUsersListingsIT,ApiFilterChainIT,ApiKeysApiIT,ContextLimitApiIT,ContextSettingsApiIT,CustomListsApiIT,DeactivatedOwnerApiIT,ErrorsIT,ListingsIT,PathSafeNamesApiIT,PolicyDetailsIT,RedactListsApiIT,RefusedPathErrorsIT,RequestIdsIT,SettingsApiIT,SignInApiIT,SigningKeyRotationIT,SignInThrottleIT,SignOnRequestIT,UserHoldsApiIT,UserPasswordsApiIT,UsersApiIT,WebhookApiIT,TaxIdentifierFiltersApiIT,FilterOptionsApiIT,CurrencyAndStreetAddressFiltersApiIT,PolicyLoadRefusalApiIT,EncodedPathAuthorizationIT,CrossUserAccessApiIT,ModelsApiIT,CrossOriginResourcePolicyIT,OfficeDocumentsApiIT,EmailMessagesApiIT,RtfDocumentsApiIT,LeftoverCheckApiIT,PdfPagePoliciesApiIT,PdfLedgerApiIT,ManagedPolicyFilterApiIT</sqlite.it.test>
         <phileas.version>4.6.0-SNAPSHOT</phileas.version>
         <springdoc.version>3.1.0</springdoc.version>
         <!-- Build plugin versions -->
@@ -528,6 +528,12 @@
         <dependency>
             <groupId>ai.philterd</groupId>
             <artifactId>phileas-ooxml</artifactId>
+            <version>${phileas.version}</version>
+        </dependency>
+        <!-- Redacts RTF documents. -->
+        <dependency>
+            <groupId>ai.philterd</groupId>
+            <artifactId>phileas-rtf</artifactId>
             <version>${phileas.version}</version>
         </dependency>
         <!-- Redacts email messages (.eml and Outlook .msg). Brings in Angus Mail and POI's HSMF. -->

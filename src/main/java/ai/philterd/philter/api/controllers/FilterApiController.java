@@ -75,7 +75,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Tag(name = "Filter", description = "Redact text, PDF, Word, and Excel documents, and email messages.")
+@Tag(name = "Filter", description = "Redact text, PDF, Word, Excel, and RTF documents, and email messages.")
 @Controller
 public class FilterApiController extends AbstractApiController {
 
@@ -345,6 +345,47 @@ public class FilterApiController extends AbstractApiController {
     /** Outlook messages (.msg). */
     public static final String MSG = "application/vnd.ms-outlook";
 
+    /** RTF documents, and the type every redacted RTF document is returned as. */
+    public static final String RTF = "application/rtf";
+
+    /** RTF documents, as some clients label them. */
+    public static final String TEXT_RTF = "text/rtf";
+
+    @Operation(
+            summary = "Filter an RTF document and receive a redacted RTF document in return.",
+            description = "Accepts application/rtf or text/rtf and returns application/rtf. The policy's config.word settings "
+                    + "apply where RTF has the part. Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` "
+                    + "and a `Location: /api/documents/{documentId}` header. Append `?async=false` to receive the redacted "
+                    + "document inline (200 OK)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redacted RTF document (synchronous path)."),
+            @ApiResponse(responseCode = "202", description = "Job accepted; poll /api/documents/{documentId}/status and download from /api/documents/{documentId}."),
+            @ApiResponse(responseCode = "404", description = "The named policy does not exist."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")
+    })
+    @RequiresScope(ApiKeyScope.REDACT)
+    @RequestMapping(value = "/api/filter", method = RequestMethod.POST, produces = RTF, consumes = {RTF, TEXT_RTF})
+    public @ResponseBody ResponseEntity<byte[]> filterRtfAsRtf(
+            final @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
+            @RequestParam(value = "c", defaultValue = "") String context,
+            @RequestParam(value = "p", defaultValue = "default") String policyName,
+            @RequestParam(value = "async", defaultValue = "true") boolean async,
+            @RequestParam(value = "filename", required = false) String filename,
+            @RequestParam(value = "sign", defaultValue = "false") boolean sign,
+            @Parameter(description = LEFTOVER_CHECK_PARAMETER)
+            @RequestParam(value = "leftover_check", defaultValue = "false") boolean leftoverCheck,
+            @Parameter(description = FAIRNESS_KEY_PARAMETER)
+            @RequestParam(value = "fairness_key", required = false) String fairnessKey,
+            final HttpServletRequest request,
+            @RequestBody byte[] body) throws Exception {
+
+        LOGGER.info("Received uploaded RTF document. async={}", async);
+        return filterDocument(authorizationHeader, context, policyName, async, filename, sign, fairnessKey, request, body,
+                MimeType.APPLICATION_RTF, RTF, leftoverCheck);
+
+    }
+
     @Operation(
             summary = "Filter an email message (.eml) and receive a redacted email message in return.",
             description = "Asynchronous by default. Returns 202 Accepted with `{\"documentId\":...}` and a `Location: /api/documents/{documentId}` header. " +
@@ -525,7 +566,7 @@ public class FilterApiController extends AbstractApiController {
     private static void rejectSigningRequest(final boolean sign) {
         if (sign) {
             throw new BadRequestException(
-                    "PDF, Word, Excel, and email responses cannot be signed. Omit sign, or use the text/plain endpoint.");
+                    "PDF, Word, Excel, RTF, and email responses cannot be signed. Omit sign, or use the text/plain endpoint.");
         }
     }
 
@@ -563,6 +604,8 @@ public class FilterApiController extends AbstractApiController {
             // Page sets are checked against the document here, so a mistake is refused rather than failing the job.
             PagePolicyRequest.checkPageCount(pagePolicies,
                     ai.philterd.philter.services.filtering.PdfInputValidator.validate(body));
+        } else if (ai.philterd.philter.services.filtering.RtfInputValidator.isRtf(inputMimeType)) {
+            ai.philterd.philter.services.filtering.RtfInputValidator.validate(body);
         } else if (ai.philterd.philter.services.filtering.EmailInputValidator.declaredFormat(inputMimeType) != null) {
             ai.philterd.philter.services.filtering.EmailInputValidator.validate(body,
                     ai.philterd.philter.services.filtering.EmailInputValidator.declaredFormat(inputMimeType));

@@ -30,6 +30,8 @@ import ai.philterd.phileas.services.filters.filtering.EmailFilterService;
 import ai.philterd.phileas.services.filters.filtering.OoxmlFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
+import ai.philterd.phileas.services.filters.filtering.RtfFilterService;
+import ai.philterd.phileas.services.rtf.RtfFormatException;
 import ai.philterd.phileas.services.ReviewSampler;
 import ai.philterd.phileas.model.filtering.LeftoverCheckResult;
 import ai.philterd.phileas.model.filtering.LeftoverFinding;
@@ -125,6 +127,7 @@ public class RedactionService {
     private final ConcurrentMap<Boolean, PdfFilterService> pdfFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, OoxmlFilterService> ooxmlFilterServices = new ConcurrentHashMap<>();
     private final ConcurrentMap<Boolean, EmailFilterService> emailFilterServices = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Boolean, RtfFilterService> rtfFilterServices = new ConcurrentHashMap<>();
 
     // Initializing this as static for the same reasons.
     private static final PoolingHttpClientConnectionManager connectionManager = createConnectionManager();
@@ -225,6 +228,11 @@ public class RedactionService {
     private OoxmlFilterService ooxmlFilterService(final boolean disambiguationEnabled) {
         return ooxmlFilterServices.computeIfAbsent(disambiguationEnabled,
                 flag -> new OoxmlFilterService(phileasConfigurationCache.get(flag), httpClient));
+    }
+
+    private RtfFilterService rtfFilterService(final boolean disambiguationEnabled) {
+        return rtfFilterServices.computeIfAbsent(disambiguationEnabled,
+                flag -> new RtfFilterService(phileasConfigurationCache.get(flag), httpClient));
     }
 
     private EmailFilterService emailFilterService(final boolean disambiguationEnabled) {
@@ -498,6 +506,17 @@ public class RedactionService {
                         vectorService, effectiveContextName, body, MimeType.MESSAGE_RFC822, options);
             } catch (final EncryptedEmailException e) {
                 throw new BadRequestException(e.getMessage());
+            }
+
+        } else if(RtfInputValidator.isRtf(mimeType)) {
+
+            RtfInputValidator.validate(body);
+            try {
+                filterResult = rtfFilterService(disambiguationEnabled).filter(phileasPolicy, phileasContextService,
+                        vectorService, effectiveContextName, body, MimeType.APPLICATION_RTF, options);
+            } catch (final RtfFormatException e) {
+                // The validator reads the document first, so this is only a backstop.
+                throw new BadRequestException("The RTF document cannot be read: " + e.getMessage());
             }
 
         } else if(mimeType == MimeType.IMAGE_JPEG) {

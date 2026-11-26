@@ -34,6 +34,9 @@ public enum DocumentType {
     OLE2("legacy Microsoft Office (.doc, .xls, .ppt) or Outlook message (.msg)",
             new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1}),
 
+    /** Rich Text Format, which Phileas reads only when it starts with exactly this. */
+    RTF("RTF document", new byte[]{'{', '\\', 'r', 't', 'f'}),
+
     JPEG("JPEG image", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}),
 
     PNG("PNG image", new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}),

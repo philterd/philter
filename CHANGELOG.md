@@ -39,6 +39,14 @@ Uses Phileas 4.6.0.
   An Outlook message is converted to `.eml`, a signed message loses its signature, and an encrypted
   message is refused with `400`. `EMAIL_MAX_BYTES`, `EMAIL_MAX_ATTACHMENT_BYTES`,
   `EMAIL_MAX_ATTACHMENTS`, and `EMAIL_MAX_NESTING_DEPTH` limit what a message may hold.
+- **RTF redaction:** `POST /api/filter` accepts RTF documents, `application/rtf` or `text/rtf`, and
+  returns `application/rtf`, synchronously or queued, with policies, contexts, the ledger, and the
+  leftover check as for Word ([#221](https://github.com/philterd/philter/issues/221)). The policy's
+  `config.word` settings apply where RTF has the part: headers and footers, comments, tracked changes,
+  hidden text, embedded objects, and document properties. Author names and the author, operator,
+  company, and manager properties are cleared whatever the policy. A body declared as RTF must start
+  with `{\rtf` and be readable, and `RTF_MAX_BYTES` and `RTF_MAX_NESTING_DEPTH` limit its size and how
+  deep its groups nest.
 - **Review sampling:** a policy's `config.review.samplingRate` selects that share of requests at random
   for human spot review. A selected `/api/filter` or `/api/explain` response has the header
   `X-Philter-Review: sampled`, explain's body has `reviewSampled`, and each selection is recorded as the
@@ -95,6 +103,10 @@ Uses Phileas 4.6.0.
   values unchanged with `200` ([#222](https://github.com/philterd/philter/issues/222)). Callers sending
   such a message as `text/plain` must now decode it first or send it as `message/rfc822`. Email without
   encoded content is still accepted as text.
+- **RTF sent as text:** a `text/plain` body that is an RTF document is refused with `415` on
+  `/api/filter` and `/api/explain` instead of being redacted as text, which missed values written with
+  RTF escapes or split across control words and returned `200` with output that looked redacted
+  ([#221](https://github.com/philterd/philter/issues/221)). Send it as `application/rtf` instead.
 - **Audit writes that failed the request:** with MongoDB storage, an audit event whose principal or
   associated object was not a record ID could fail the request being audited with `500` instead of being
   recorded. The value is now stored as text, and a failure to store any audit event is logged rather

@@ -15,6 +15,8 @@ Philter redacts the following content types, selected by the request's `Content-
 
 *   **Word (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`)** and **Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)**: Identified information is replaced in the document according to the filter strategy, as for text, and the response is an editable document of the same format. Redaction is asynchronous by default, as for PDF. See [Word and Excel documents](#word-and-excel-documents).
 
+*   **RTF (`application/rtf`, also accepted as `text/rtf`)**: Identified information is replaced in the document according to the filter strategy, as for text, and the response is an RTF document, `application/rtf`. Redaction is asynchronous by default, as for PDF. See [RTF documents](#rtf-documents).
+
 *   **Email (`message/rfc822`, `.eml`)** and **Outlook (`application/vnd.ms-outlook`, `.msg`)**: Headers and text bodies are redacted according to the filter strategy, as for text, and the response is a MIME message, `message/rfc822`, whatever the input. Redaction is asynchronous by default, as for PDF. See [Email messages](#email-messages).
 
 Philter does not redact other Office formats (`.doc`, `.xls`, PowerPoint, templates, and macro-enabled files), OpenDocument files, or images.
@@ -41,6 +43,36 @@ Limitations:
 A body declared as Word or Excel must be a document of that type: an Excel workbook sent as Word, or any other ZIP file, is refused with `415 Unsupported Media Type`. A document that decompresses to more than [`OFFICE_MAX_UNCOMPRESSED_BYTES`](../settings.md#redaction-engine), has more than `OFFICE_MAX_ENTRIES` entries, or has an entry larger than 100 KB that expands to more than 100 times its compressed size is refused with `413 Payload Too Large`.
 
 In the [redaction ledger](ledgers.md), the start position of a redaction in a Word or Excel document is its offset within the paragraph, cell, or other piece of text it was found in, not within the whole document.
+
+## RTF Documents
+
+Philter redacts RTF documents sent as `application/rtf` or `text/rtf` and returns them as `application/rtf`. Request the result with `Accept: application/rtf` or `Accept: */*`; any other `Accept` is refused with `406 Not Acceptable`.
+
+Text is read from the body and tables, footnotes and endnotes, headers and footers, comments, field instructions (such as a `HYPERLINK` target), and shape text, each paragraph or table cell on its own. A value is found when it is split across formatting runs or written with RTF escapes (`\'hh` or `\uN`). Parts of the document that redaction does not change are returned unchanged.
+
+The policy's `config.word` settings apply where RTF has the part, so two policies can handle the same document differently. A queued document is redacted with the settings of the policy version in force when it was accepted.
+
+| Setting | Default | In RTF |
+|---|---|---|
+| `headersFooters` | `redact` | `\header` and `\footer` groups. `keep` leaves them unscanned. |
+| `comments` | `remove` | Comments (`\annotation` groups). `remove` deletes them; `redact` keeps them and redacts their text. |
+| `trackedChanges` | `accept` | Tracked insertions and deletions. `accept` removes deleted text and the revision marks; `redact` keeps them and redacts their text, deleted text included. |
+| `hiddenText` | `remove` | Text formatted hidden (`\v`). `remove` deletes it; `redact` keeps it and redacts it like visible text. |
+| `uninspectableObjects` | `remove` | Embedded objects (`\object` groups). `remove` deletes them; `keep` leaves them. |
+| `removeDocumentProperties` | `true` | The title, subject, keywords, comments, and category document properties, and custom properties. |
+
+`charts` and `highlight` have no RTF counterpart and are ignored. Who wrote and edited a document is cleared whatever the policy: the author, operator, company, and manager document properties are emptied, and a kept comment's author and each author of a kept tracked change become `Redacted`.
+
+Limitations:
+
+*   `hiddenText: remove` removes text formatted hidden directly. Text hidden by a character or paragraph style is kept and redacted like visible text.
+*   Accepting tracked changes does not remove a deleted table row; its text is removed.
+*   An embedded object is removed or kept whole; a document embedded in it is not redacted.
+*   A replacement is written in the formatting of the first character it replaces. In a multi-byte code page, a run of `\'hh` escapes that holds a redacted value is removed whole, with any other characters in the run.
+
+A body declared as RTF must start with `{\rtf`, and an RTF document must be sent as RTF: one sent as `text/plain`, PDF, or any other type is refused with `415 Unsupported Media Type`, since as text its escaped values would not be found. A document larger than [`RTF_MAX_BYTES`](../settings.md#redaction-engine), or with groups nested more than `RTF_MAX_NESTING_DEPTH` deep, is refused with `413 Payload Too Large`. A document that cannot be read, such as one whose groups are not closed or that has a malformed escape, is refused with `400 Bad Request`. All of these are checked when the document is submitted, queued or not.
+
+In the [redaction ledger](ledgers.md), the start position of a redaction in an RTF document is its offset within the paragraph, table cell, or other piece of text it was found in, not within the whole document.
 
 ## Email Messages
 
@@ -123,7 +155,7 @@ When you submit a document to Philter for redaction:
 
 1.  **Submission**: The document is sent to `POST /api/filter`. Its `Content-Type` selects the processing engine. Philter checks the leading bytes against the declared type and rejects a body that contradicts it (for example, a PDF sent as `text/plain`) with `415 Unsupported Media Type`; it does not use the bytes to choose a different format.
 2.  **Policy-driven identification**: The engine applies the selected [redaction policy](policies.md), which defines what counts as sensitive and how each type is handled.
-3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDF, Word, Excel, and email documents are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
+3.  **Redacted output**: A redacted copy is produced. Text is returned in the response; PDF, Word, Excel, RTF, and email documents are queued and retrieved from the [Documents API](../api_and_sdks/api/documents_api.md) when processing finishes.
 4.  **Ledgering**: If the [redaction ledger](ledgers.md) is enabled for the context, each redaction is recorded as a hash-chained entry stamped with the policy version that governed it.
 
 Queued document jobs retain encrypted input while pending or processing and remove it when the job reaches a terminal state. Results and job records have a separate [retention period](../settings.md#asynchronous-documents-and-webhooks); captured execution configurations are retained separately.
@@ -175,7 +207,7 @@ curl -k -X POST "https://localhost:8080/api/filter?p=my-policy&async=false" \
   -o redacted.eml
 ```
 
-Without `async=false`, a PDF, Word, Excel, or email document is queued and processed asynchronously; poll and download it with the [Documents API](../api_and_sdks/api/documents_api.md), or receive a [webhook](../api_and_sdks/api/webhooks.md) when it completes.
+Without `async=false`, a PDF, Word, Excel, RTF, or email document is queued and processed asynchronously; poll and download it with the [Documents API](../api_and_sdks/api/documents_api.md), or receive a [webhook](../api_and_sdks/api/webhooks.md) when it completes.
 
 ## Immutable Cryptographic Ledgers
 

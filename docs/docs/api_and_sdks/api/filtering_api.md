@@ -12,7 +12,7 @@ Each filter request submitted to Philter is automatically assigned a document id
 
 ## Filter
 
-The `filter` endpoint receives plain text, a PDF, a Word document, an Excel workbook, or an email message and returns it redacted, in the same format. A PDF can instead be returned in a ZIP archive, and an Outlook message is returned as a MIME message.
+The `filter` endpoint receives plain text, a PDF, a Word document, an Excel workbook, an RTF document, or an email message and returns it redacted, in the same format. A PDF can instead be returned in a ZIP archive, and an Outlook message is returned as a MIME message.
 
 The types of sensitive information found and how each type is redacted is determined by the chosen policy.
 
@@ -24,18 +24,18 @@ The types of sensitive information found and how each type is redacted is determ
 
 * `p` - The name of the policy to use for filtering: one of yours, or a [managed policy](../../policies/sample_policies.md#managed-policies) such as `managed_common_pii`. Defaults to `default` if not provided.
 * `c` - The filtering context. Optional; when omitted or empty, no context is used (see above).
-* `async` - **PDF, Word, Excel, and email only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
+* `async` - **PDF, Word, Excel, RTF, and email only.** Whether to process the request asynchronously. Defaults to `true`. The text endpoint is always synchronous and ignores this parameter.
 * `filename` - Optional. A filename to record with this request in the [redaction ledger](../../redaction/ledgers.md). When omitted, the ledger records `none-provided`. Where it is kept, with the ledger or an asynchronous job, it is stored unencrypted so it can be searched and sorted, so do not put sensitive values in it; see [What is encrypted at rest](../../database.md#what-is-encrypted-at-rest).
 * `page_policy` - **PDF only.** Optional and repeatable. `<pages>:<policy>` redacts those pages with the named policy instead of `p`, such as `page_policy=2-5,8:records&page_policy=12-:exhibits`. Unassigned pages use `p`, whose `config.pdf` settings render the whole document. See [Different policies for different pages of a PDF](../../redaction/redacting_documents.md#different-policies-for-different-pages-of-a-pdf).
-* `fairness_key` - **Asynchronous PDF, Word, Excel, and email only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
+* `fairness_key` - **Asynchronous PDF, Word, Excel, RTF, and email only.** Optional. Documents your account queues with different fairness keys take turns in the queue. See [Fairness keys](#fairness-keys).
 * `leftover_check` - Optional, defaults to `false`. `leftover_check=true` requests the policy's [leftover check](../../policies/filter_policies.md#leftover-check) when its mode is `onRequest`. With mode `always` every request is checked and `leftover_check=false` does not change that; with mode `off` the request is refused with `400 Bad Request`.
-* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF, ZIP, Word, Excel, and email requests with `sign=true` are refused with `400 Bad Request`, because those responses are not signed.
+* `sign` - Optional, defaults to `false`. `sign=true` requests an [output signature](../../output_signing.md) on a plain-text response when the deployment has not enabled signing. When signing is enabled in settings, every text response is signed and `sign=false` does not change that. PDF, ZIP, Word, Excel, RTF, and email requests with `sign=true` are refused with `400 Bad Request`, because those responses are not signed.
 
 ### Headers
 
 * `Authorization` - The value should be set to `Bearer <token>` where `<token>` is your API key.
-* `Content-Type` - `text/plain`, `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (Word), `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (Excel), `message/rfc822` (`.eml`), or `application/vnd.ms-outlook` (`.msg`).
-* `Accept` - For an email message, `.eml` or `.msg`, `message/rfc822` or `*/*`. Any other value is refused with `406 Not Acceptable`.
+* `Content-Type` - `text/plain`, `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (Word), `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (Excel), `application/rtf` or `text/rtf` (RTF), `message/rfc822` (`.eml`), or `application/vnd.ms-outlook` (`.msg`).
+* `Accept` - For an email message, `.eml` or `.msg`, `message/rfc822` or `*/*`; for an RTF document, `application/rtf` or `*/*`. Any other value is refused with `406 Not Acceptable`.
 
 ### Request Size
 
@@ -54,8 +54,8 @@ run through the text pipeline, match almost nothing in the compressed bytes, and
 output that looks redacted. Refusing the request is safer than returning a document Philter never
 parsed.
 
-Philter accepts `text/plain`, `application/pdf`, and the Word, Excel, and email types above. A body recognized
-as any other format, such as a `.docx` sent as text, a legacy Office file, or an image, is rejected
+Philter accepts `text/plain`, `application/pdf`, and the Word, Excel, RTF, and email types above. A body recognized
+as any other format, such as a `.docx` or an RTF document sent as text, a legacy Office file, or an image, is rejected
 rather than treated as text.
 
 A ZIP cannot be told apart from a Word or Excel document by its first bytes, so a body declared as Word
@@ -69,6 +69,12 @@ An Outlook message is a compound file, as a legacy Word or Excel file is, so a b
 signature, so a body declared as `message/rfc822` must parse as a message with a block of message
 headers. Either is otherwise refused with `415`. An email message over the
 [email limits](../../settings.md#redaction-engine) is refused with `413 Payload Too Large`.
+
+An RTF document starts with `{\rtf`, so a body declared as `application/rtf` or `text/rtf` must start with it, and
+an RTF document declared as anything else is refused. As text, its escaped values would not be matched. A body
+declared as RTF is also read in full: one over the [RTF limits](../../settings.md#redaction-engine) is refused with
+`413 Payload Too Large`, and one that cannot be read, such as one whose groups are not closed, with
+`400 Bad Request`.
 
 An email message sent as `text/plain` is checked too, since it has no signature. If the body begins
 with a block of email headers (each line `Name: value` or a folded continuation, up to the first blank
@@ -113,7 +119,7 @@ Plain text redaction is always synchronous. The response body is the redacted te
 curl -k -X POST "https://localhost:8080/api/filter" -d @file.txt -H "Content-Type: text/plain" -H "Authorization: Bearer <token>"
 ```
 
-### PDF, Word, Excel, and email documents
+### PDF, Word, Excel, RTF, and email documents
 
 PDF redaction is **asynchronous by default** in Philter 4.0. The server enqueues the request and returns `202 Accepted` with a JSON body containing the assigned `documentId` and a `Location: /api/documents/{documentId}` header. A request naming a policy that does not exist is refused with `404 Not Found` before it is enqueued, so a mistyped policy name surfaces immediately rather than as a failed job. The synchronous text endpoint answers the same way. The redacted bytes can then be downloaded from the [Documents API](documents_api.md) once the job's status is `COMPLETE`.
 
@@ -186,7 +192,7 @@ curl -k -X POST "https://localhost:8080/api/filter?fairness_key=reviewer-42" \
 
 ## Explain
 
-The `explain` endpoint behaves much like the `filter` endpoint in that receives plain text and returns the redacted plain text. However, the `explain` endpoint provides a detailed explanation describing how the text was redacted. Also, the `explain` endpoint does not support PDF, Word, Excel, or email documents.
+The `explain` endpoint behaves much like the `filter` endpoint in that receives plain text and returns the redacted plain text. However, the `explain` endpoint provides a detailed explanation describing how the text was redacted. Also, the `explain` endpoint does not support PDF, Word, Excel, RTF, or email documents.
 
 The types of sensitive information found and how each type is redacted is determined by the chosen policy.
 

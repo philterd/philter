@@ -135,28 +135,31 @@ public class ApiDocumentationConfig {
             op(api, "/api/audit/export", "get").getResponses().get("200").setContent(content("text/csv", new StringSchema()));
             op(api, "/api/documents", "get").getResponses().putIfAbsent("404", new ApiResponse().description("Owner unavailable or inaccessible."));
             final Operation filter = op(api, "/api/filter", "post");
-            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, unreadable or encrypted email message, sign=true on a PDF, Word, Excel, or email request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.");
-            filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), encrypted async record, a Word or Excel document's decompressed size or entry count, or an email message's size, attachment size, attachment count, or nesting depth exceeds its limit.");
+            filter.getResponses().get("400").setDescription("Invalid request, malformed or unparseable PDF, password-protected PDF, PDF without pages, unreadable Word or Excel document, unreadable RTF document, unreadable or encrypted email message, sign=true on a PDF, Word, Excel, RTF, or email request, or an invalid page_policy: malformed, overlapping another, beyond the PDF's last page, or on a request that is not a PDF.");
+            filter.getResponses().get("413").setDescription("Request body, resolved configuration (1 MiB), encrypted async record, a Word or Excel document's decompressed size or entry count, an RTF document's size or group nesting depth, or an email message's size, attachment size, attachment count, or nesting depth exceeds its limit.");
             filter.setOperationId("filter");
-            filter.setSummary("Redact text, a PDF, a Word document, an Excel workbook, or an email message.");
+            filter.setSummary("Redact text, a PDF, a Word document, an Excel workbook, an RTF document, or an email message.");
             filter.getResponses().computeIfAbsent("415", status -> new ApiResponse())
-                    .setDescription("The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, a body that is not a MIME message sent as message/rfc822, or an email message with base64, quoted-printable, or multipart content sent as text/plain.");
+                    .setDescription("The body contradicts its Content-Type, for example a ZIP that is not a Word document sent as a Word document, a legacy Word or Excel file sent as an Outlook message, a body that does not start with {\\rtf sent as RTF, an RTF document sent as text/plain, a body that is not a MIME message sent as message/rfc822, or an email message with base64, quoted-printable, or multipart content sent as text/plain.");
             filter.getResponses().computeIfAbsent("406", status -> new ApiResponse())
-                    .setDescription("No representation matches Accept. An email message, .eml or .msg, is returned only as message/rfc822.");
+                    .setDescription("No representation matches Accept. An email message, .eml or .msg, is returned only as message/rfc822, and an RTF document only as application/rtf.");
             filter.setDescription("Requires the `redact` scope. Text is synchronous and returns text/plain. "
                     + "For PDFs select application/pdf or application/zip with Accept. A Word document or Excel "
-                    + "workbook is returned in its own format. An email message, message/rfc822 (.eml) or "
+                    + "workbook is returned in its own format. An RTF document, application/rtf or text/rtf, is returned "
+                    + "as application/rtf. An email message, message/rfc822 (.eml) or "
                     + "application/vnd.ms-outlook (.msg), is returned as message/rfc822, so select message/rfc822 or */* "
-                    + "with Accept. PDF, Word, Excel, and email default to async=true, "
+                    + "with Accept. PDF, Word, Excel, RTF, and email default to async=true, "
                     + "returning application/json with documentId regardless of the selected download format. "
                     + "Set async=false for inline binary output. Async submission captures resolved configuration. "
                     + ai.philterd.philter.api.controllers.FilterApiController.SIGN_PARAMETER
                     + " It applies to the text path, which is the one that is signed; sign=true on a PDF, Word,"
-                    + " Excel, or email request is refused with 400 rather than answered unsigned.");
+                    + " Excel, RTF, or email request is refused with 400 rather than answered unsigned.");
             filter.getRequestBody().setContent(content("text/plain", new StringSchema())
                     .addMediaType("application/pdf", new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.RTF, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.TEXT_RTF, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.EML, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.MSG, new MediaType().schema(new BinarySchema())));
             response(filter, "200", "Redacted text or synchronous binary result.", content("text/plain", new StringSchema())
@@ -164,6 +167,7 @@ public class ApiDocumentationConfig {
                     .addMediaType("application/zip", new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.RTF, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.EML, new MediaType().schema(new BinarySchema())));
             response(filter, "202", "Document accepted; poll status and download the result.",
                     content("application/json", object("documentId", new StringSchema())));
@@ -197,6 +201,7 @@ public class ApiDocumentationConfig {
                     .addMediaType("application/zip", new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.DOCX, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.XLSX, new MediaType().schema(new BinarySchema()))
+                    .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.RTF, new MediaType().schema(new BinarySchema()))
                     .addMediaType(ai.philterd.philter.api.controllers.FilterApiController.EML, new MediaType().schema(new BinarySchema())));
             headers(download, "200", "Content-Disposition");
             for (final Operation completed : new Operation[]{op(api, "/api/documents/{documentId}/status", "get"),

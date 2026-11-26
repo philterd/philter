@@ -32,6 +32,7 @@ JSON responses use `application/json`; dates in API response objects use ISO 860
 | GET | `/api/documents/{documentId}/status` | application/json | `documents:read` | [Details](documents_api.md) |
 | POST | `/api/explain` | application/json | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/pdf | `redact` | [Details](filtering_api.md) |
+| POST | `/api/filter` | application/rtf | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/vnd.openxmlformats-officedocument.wordprocessingml.document | `redact` | [Details](filtering_api.md) |
 | POST | `/api/filter` | application/zip | `redact` | [Details](filtering_api.md) |

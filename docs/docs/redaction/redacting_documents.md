@@ -112,10 +112,27 @@ The policy's `config.email` decides what happens to other headers, attachments, 
 | `headers.removeIdentity` | `true` | Removes `Bcc`, `Reply-To`, `Sender`, and every header beginning `Resent-`. |
 | `headers.removeDate` | `false` | Removes the `Date` header. |
 | `headers.removeSubject` | `false` | Removes the `Subject` header instead of redacting it. |
-| `attachments` | `keep` | `keep` leaves attachments as they are, **not inspected or redacted**. `remove` deletes them, including their filenames. `redact` redacts each PDF, Word (`.docx`), and Excel (`.xlsx`) attachment with the same policy, and removes any other attachment and any that cannot be redacted. |
+| `attachments` | `keep` | `keep` leaves attachments as they are, **not inspected or redacted**. `remove` deletes them, including their filenames. `redact` redacts each PDF, Word (`.docx`), Excel (`.xlsx`), RTF, CSV, and plain-text attachment with the same policy, keeping its filename and media type, and removes any other attachment and any that cannot be redacted. See [Redacted attachments](#redacted-attachments). |
 | `inlineImages` | `keep` | `keep` leaves images embedded in the body as they are, not inspected. `remove` deletes them. |
 
-Other headers are kept as they are. Under the default `attachments: keep`, an attachment can contain sensitive information that is returned unchanged; use `remove` or `redact` when that matters. A PDF attachment under `redact` is redacted as a PDF is, with the policy's `config.pdf`, so a page with a redaction is flattened to an image. An attachment is recognized as PDF, Word, or Excel by its media type or filename extension. Under `attachments: remove`, a forwarded message attached to the message is removed too; under `keep` and `redact`, it is redacted as a nested message.
+Other headers are kept as they are. Under the default `attachments: keep`, an attachment can contain sensitive information that is returned unchanged; use `remove` or `redact` when that matters. Under `attachments: remove`, a forwarded message attached to the message is removed too; under `keep` and `redact`, it is redacted as a nested message.
+
+#### Redacted attachments
+
+Under `attachments: redact`, an attachment is recognized and redacted as follows:
+
+| Type | Recognized by | Redacted |
+|---|---|---|
+| PDF | `application/pdf` or a `.pdf` filename | As a PDF is, with the policy's `config.pdf`, so a page with a redaction is flattened to an image. |
+| Word | The Word media type or a `.docx` filename | As a [Word document](#word-and-excel-documents) is, with `config.word`. |
+| Excel | The Excel media type or a `.xlsx` filename | As an [Excel workbook](#word-and-excel-documents) is. |
+| RTF | `application/rtf`, `text/rtf`, or a `.rtf` filename | As an [RTF document](#rtf-documents) is, with `config.word`. |
+| CSV | `text/csv` or a `.csv` filename | Field by field, with the policy's `config.csv` and column rules. |
+| Plain text | `text/plain` | As text. |
+
+An `application/octet-stream` attachment whose filename has no extension, or that has no filename, is recognized by its content as PDF, Word, Excel, or RTF. A plain-text attachment is recognized only by its `text/plain` media type, not by a `.txt` filename. A `text/plain` part is an attachment when it has a filename or an attachment disposition; otherwise it is a body part and is redacted as body text.
+
+A CSV attachment is read and written in the `charset` its part declares, otherwise in `config.csv`'s `encoding`. A plain-text attachment is read and written in its declared `charset`, otherwise UTF-8. An attachment that cannot be read in its charset, a malformed RTF document, or a CSV document over a limit is removed and counted in `removed-attachments`, never returned unredacted.
 
 Limitations:
 

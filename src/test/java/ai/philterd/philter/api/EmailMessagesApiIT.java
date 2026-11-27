@@ -23,8 +23,12 @@ import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.model.ApiKeyScope;
 import ai.philterd.philter.testutil.EmailMessages;
 import ai.philterd.philter.testutil.InMemoryTestConfiguration;
+import ai.philterd.philter.testutil.RtfDocuments;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,13 +38,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.env.Environment;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -292,6 +302,97 @@ class EmailMessagesApiIT {
             assertEquals(200, response.statusCode(), response.body());
             assertFalse(response.body().contains(SSN), response.body());
             assertFalse(response.body().contains("scan.pdf"), response.body());
+        }
+    }
+
+    // A CSV, an RTF, and a plain-text attachment, each holding the SSN.
+    private static EmailMessages.Attachment[] textAttachments() {
+        return new EmailMessages.Attachment[]{
+                new EmailMessages.Attachment("patients.csv", "text/csv; charset=UTF-8",
+                        ("Name,SSN\nAvery Example," + SSN + "\n").getBytes(StandardCharsets.UTF_8)),
+                new EmailMessages.Attachment("letter.rtf", "application/rtf", RtfDocuments.rtf(TEXT)),
+                new EmailMessages.Attachment("notes.txt", "text/plain; charset=UTF-8", TEXT.getBytes(StandardCharsets.UTF_8))};
+    }
+
+    /** The attachments of a returned message, by filename. */
+    private static Map<String, MimeBodyPart> attachmentsOf(final String message) throws Exception {
+        final MimeMessage parsed = new MimeMessage(EmailMessages.SESSION,
+                new ByteArrayInputStream(message.getBytes(StandardCharsets.UTF_8)));
+        final MimeMultipart multipart = (MimeMultipart) parsed.getContent();
+        final Map<String, MimeBodyPart> attachments = new LinkedHashMap<>();
+        for (int i = 0; i < multipart.getCount(); i++) {
+            final MimeBodyPart part = (MimeBodyPart) multipart.getBodyPart(i);
+            if (part.getFileName() != null) {
+                attachments.put(part.getFileName(), part);
+            }
+        }
+        return attachments;
+    }
+
+    private static byte[] contentOf(final MimeBodyPart part) throws Exception {
+        try (InputStream in = part.getInputStream()) {
+            return in.readAllBytes();
+        }
+    }
+
+    @Test
+    @DisplayName("CSV, RTF, and plain-text attachments under attachments: redact are redacted and keep their filename and type")
+    void textAttachmentsUnderRedactAreRedacted() throws Exception {
+        savePolicy("redact-attachments", SSN_POLICY.substring(0, SSN_POLICY.length() - 1)
+                + ",\"config\":{\"email\":{\"attachments\":\"redact\"}}}");
+
+        final HttpResponse<String> response = redact("?p=redact-attachments&async=false", EML,
+                EmailMessages.emlWithAttachments(TEXT, textAttachments()));
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
+                response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
+
+        final Map<String, MimeBodyPart> attachments = attachmentsOf(response.body());
+        assertEquals(List.of("patients.csv", "letter.rtf", "notes.txt"), List.copyOf(attachments.keySet()));
+
+        assertTrue(attachments.get("patients.csv").isMimeType("text/csv"), attachments.get("patients.csv").getContentType());
+        assertEquals("Name,SSN\nAvery Example,{{{REDACTED-ssn}}}\n",
+                new String(contentOf(attachments.get("patients.csv")), StandardCharsets.UTF_8));
+
+        assertTrue(attachments.get("letter.rtf").isMimeType("application/rtf"), attachments.get("letter.rtf").getContentType());
+        final byte[] rtf = contentOf(attachments.get("letter.rtf"));
+        assertFalse(new String(rtf, StandardCharsets.ISO_8859_1).contains(SSN));
+        assertTrue(RtfDocuments.text(rtf).contains("The patient's SSN is {{{REDACTED-ssn}}}."), RtfDocuments.text(rtf));
+
+        assertTrue(attachments.get("notes.txt").isMimeType("text/plain"), attachments.get("notes.txt").getContentType());
+        assertEquals("The patient's SSN is {{{REDACTED-ssn}}}.",
+                new String(contentOf(attachments.get("notes.txt")), StandardCharsets.UTF_8));
+
+        // Not valid in the charset it declares, or in a charset Java does not have: removed and counted, not returned.
+        for (final EmailMessages.Attachment attachment : List.of(
+                new EmailMessages.Attachment("legacy.txt", "text/plain; charset=US-ASCII",
+                        ("SSN " + SSN + " caf\u00e9").getBytes(StandardCharsets.ISO_8859_1)),
+                new EmailMessages.Attachment("odd.txt", "text/plain; charset=x-no-such-charset",
+                        TEXT.getBytes(StandardCharsets.UTF_8)))) {
+            final HttpResponse<String> unreadable = redact("?p=redact-attachments&async=false", EML,
+                    EmailMessages.emlWithAttachments(TEXT, attachment));
+            assertEquals(200, unreadable.statusCode(), unreadable.body());
+            assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, dropped-signatures=0",
+                    unreadable.headers().firstValue("X-Philter-Email-Report").orElseThrow(), attachment.fileName());
+            assertTrue(attachmentsOf(unreadable.body()).isEmpty(), unreadable.body());
+            assertFalse(unreadable.body().contains(SSN), unreadable.body());
+        }
+    }
+
+    @Test
+    @DisplayName("CSV, RTF, and plain-text attachments under attachments: keep are returned uninspected")
+    void textAttachmentsUnderKeepAreUninspected() throws Exception {
+        final HttpResponse<String> response = redact("?p=ssn-only&async=false", EML,
+                EmailMessages.emlWithAttachments(TEXT, textAttachments()));
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("uninspected-attachments=3, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
+                response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
+
+        final Map<String, MimeBodyPart> attachments = attachmentsOf(response.body());
+        final EmailMessages.Attachment[] sent = textAttachments();
+        assertEquals(sent.length, attachments.size());
+        for (final EmailMessages.Attachment attachment : sent) {
+            assertArrayEquals(attachment.content(), contentOf(attachments.get(attachment.fileName())), attachment.fileName());
         }
     }
 

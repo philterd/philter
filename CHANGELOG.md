@@ -35,7 +35,12 @@ Uses Phileas 4.6.0.
   `application/vnd.ms-outlook` (`.msg`), and returns `message/rfc822`, synchronously or queued
   ([#220](https://github.com/philterd/philter/issues/220)). Headers and text bodies are redacted with the
   policy, and the policy's `config.email` decides which other headers are removed and whether
-  attachments and inline images are kept, removed, or (for PDF, Word, and Excel attachments) redacted.
+  attachments and inline images are kept, removed, or (for PDF, Word, Excel, RTF, CSV, and plain-text
+  attachments, [#229](https://github.com/philterd/philter/issues/229)) redacted. A redacted attachment
+  keeps its filename and media type; one that cannot be read in its charset, or cannot be redacted, is
+  removed and counted in `removed-attachments`. See
+  [Redacted attachments](docs/docs/redaction/redacting_documents.md#redacted-attachments) and the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
   An Outlook message is converted to `.eml`, a signed message loses its signature, and an encrypted
   message is refused with `400`. `EMAIL_MAX_BYTES`, `EMAIL_MAX_ATTACHMENT_BYTES`,
   `EMAIL_MAX_ATTACHMENTS`, and `EMAIL_MAX_NESTING_DEPTH` limit what a message may hold.

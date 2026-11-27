@@ -75,6 +75,21 @@ public final class EmailMessages {
         return bytes(message);
     }
 
+    /** An attachment of a MIME message. {@code type} may carry parameters, such as a charset. */
+    public record Attachment(String fileName, String type, byte[] content) {
+    }
+
+    /** A message with a text body and the given attachments. */
+    public static byte[] emlWithAttachments(final String body, final Attachment... attachments) throws Exception {
+        final MimeMultipart multipart = new MimeMultipart(text(body));
+        for (final Attachment attachment : attachments) {
+            multipart.addBodyPart(attachment(attachment.fileName(), attachment.type(), attachment.content()));
+        }
+        final MimeMessage message = message("With attachments", null);
+        message.setContent(multipart);
+        return bytes(message);
+    }
+
     /** A message forwarding another, {@code depth} messages deep. */
     public static byte[] nested(final int depth, final String innermostBody) throws Exception {
         MimeMessage message = message("Innermost", innermostBody);

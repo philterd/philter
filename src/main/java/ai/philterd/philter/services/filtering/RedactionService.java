@@ -519,13 +519,6 @@ public class RedactionService {
                 throw new BadRequestException("The RTF document cannot be read: " + e.getMessage());
             }
 
-        } else if(mimeType == MimeType.IMAGE_JPEG) {
-
-            final PdfFilterService pdfFilterService = pdfFilterService(disambiguationEnabled);
-            try (PdfRenderSlots.Slot ignored = pdfSlot(queued)) {
-                filterResult = pdfFilterService.filter(phileasPolicy, phileasContextService, vectorService, effectiveContextName, body, MimeType.IMAGE_JPEG, options);
-            }
-
         } else {
 
             throw new Exception("Unsupported MIME type: " + mimeType);

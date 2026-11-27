@@ -61,7 +61,7 @@ The following filter strategy options are available for the `SHIFT` filter strat
 | `shiftYears`   | The number of years to shift the date. Can be a negative or positive integer. Defaults to `0` if not specified.   | `0`           |
 | `shiftRandom`  | When `true`, shift the date by a random number of days, months, and years instead of `shiftDays`, `shiftMonths`, and `shiftYears`. | `false`       |
 
-With `shiftRandom` and a `replacementScope` of `CONTEXT`, one random shift is drawn for the context and every date redacted in it is moved by the same number of days, so dates keep their order and the days between them across documents. Philter keeps the shift with the context: clearing the context's mappings keeps it, and deleting the context removes it. See [Random date shifts](../../../redaction/replacement_scope.md#random-date-shifts).
+With `shiftRandom` and the default `replacementScope` of `DOCUMENT`, one random shift is drawn for each document and every date in it is moved by the same number of days, so dates keep their order and the days between them within the document. Each document gets its own shift. With a `replacementScope` of `CONTEXT`, one random shift is drawn for the context and every date redacted in it is moved by the same number of days, so dates keep their order and the days between them across documents. Philter keeps a `CONTEXT`-scoped shift with the context: clearing the context's mappings keeps it, and deleting the context removes it. See [Random date shifts](../../../redaction/replacement_scope.md#random-date-shifts).
 
 ### Conditions
 

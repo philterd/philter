@@ -86,6 +86,14 @@ Uses Phileas 4.6.0.
   one line ([#210](https://github.com/philterd/philter/issues/210)). Each page of a PDF is now read once, so the ledger no longer
   records duplicate entries for pages after the first. See the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
+- **Output for policies with the default `DOCUMENT` replacement scope:** every occurrence of a value in
+  one document now gets the same replacement, where each occurrence got its own
+  ([#230](https://github.com/philterd/philter/issues/230)). This applies to `RANDOM_REPLACE`, to a
+  `MAP_REPLACE` generator, which is asked once for a repeated value, and to a random date `SHIFT`, which
+  moves every date in a document by the same number of days. Each document still gets its own
+  replacements, which are not stored in the context. See
+  [Consistent Pseudonymization](docs/docs/redaction/replacement_scope.md) and the
+  [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
 - **`managed_healthcare_phi` uses `zipCodeFilterStrategies`:** the managed policy no longer uses the
   deprecated `zipCodeFilterStrategy` key ([#206](https://github.com/philterd/philter/issues/206)).
   Policies copied from it before this release still work, but should rename the key before the alias

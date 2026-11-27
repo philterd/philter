@@ -10,7 +10,7 @@ Each filter strategy has an optional `replacementScope` field. It accepts two va
 
 | Value | Meaning |
 | ----- | ------- |
-| `DOCUMENT` | **(Default.)** Each document is pseudonymized independently. The same value may receive a different replacement in a different document. |
+| `DOCUMENT` | **(Default.)** Every occurrence of a value in one document gets the same replacement. Each document gets its own replacements, even when documents are redacted in the same context. |
 | `CONTEXT` | The same value receives the same replacement across every document processed in the same [context](contexts.md). |
 
 Set it on the strategy in your [policy](../policies/filter_strategies.md). For example, to pseudonymize SSNs consistently across a context:
@@ -30,7 +30,20 @@ Set it on the strategy in your [policy](../policies/filter_strategies.md). For e
 }
 ```
 
-`CONTEXT` scope only takes effect when the redaction request supplies a [context](contexts.md); consistency is shared among documents redacted under that same context name.
+`CONTEXT` scope only takes effect when the redaction request supplies a [context](contexts.md); consistency is shared among documents redacted under that same context name. Without a context, a `CONTEXT`-scoped strategy keeps nothing, so every occurrence of a value gets its own replacement and every date its own random shift, even within one document.
+
+## What counts as one document
+
+Under `DOCUMENT` scope, one redaction request body is one document, and everything in it shares one set of replacements:
+
+* **Plain text:** the whole body.
+* **PDF:** every page.
+* **Word, Excel, and RTF:** every part of the document.
+* **Email (`.eml` and `.msg`):** the message body and all of its attachments.
+
+Values are matched exactly, so `John Smith` and `J. Smith` get different replacements.
+
+`DOCUMENT`-scoped replacements are kept only for the request. They are not stored in the context's mapping table, do not appear in `GET /api/contexts/{name}/entries`, and do not count toward `MAX_CONTEXT_SIZE`.
 
 ## How the context mapping table works
 
@@ -45,13 +58,13 @@ Under `CONTEXT` scope, the first time a value is replaced Philter records the ma
 
 Replacement scope matters only for strategies that generate a value that would otherwise vary from run to run. Deterministic strategies are already consistent across documents regardless of scope.
 
-| Strategy | Effect of `CONTEXT` scope |
-| -------- | ------------------------- |
-| `RANDOM_REPLACE` (pseudonymize) | **Primary use.** The randomly generated surrogate is stored and reused, so the same value maps to the same surrogate across documents. |
-| `MAP_REPLACE` | A value the lookup table does not map gets a generated replacement, which is stored and reused, so it maps to the same replacement across documents. |
-| `FPE_ENCRYPT_REPLACE` | No table needed. Format-preserving encryption is already deterministic for a given key, so the same input always encrypts to the same value. See [FPE](../policies/filter_strategies.md#the-fpe_encrypt_replace-filter-strategy). |
-| `HASH_SHA256_REPLACE` | Deterministic on its own (unless salted), so it is consistent regardless of scope. |
-| `STATIC_REPLACE`, `MASK`, `REDACT` | Produce a fixed output for a given input, so scope has no effect. |
+| Strategy | Effect of `DOCUMENT` scope | Effect of `CONTEXT` scope |
+| -------- | -------------------------- | ------------------------- |
+| `RANDOM_REPLACE` (pseudonymize) | A value gets one randomly generated surrogate for every occurrence in the document. The next document gets a new one. | **Primary use.** The randomly generated surrogate is stored and reused, so the same value maps to the same surrogate across documents. |
+| `MAP_REPLACE` | A value the lookup table does not map gets one generated replacement for every occurrence in the document, and the generator is asked once for it. | A value the lookup table does not map gets a generated replacement, which is stored and reused, so it maps to the same replacement across documents. |
+| `FPE_ENCRYPT_REPLACE` | No table needed. Format-preserving encryption is already deterministic for a given key, so the same input always encrypts to the same value. See [FPE](../policies/filter_strategies.md#the-fpe_encrypt_replace-filter-strategy). | Same as `DOCUMENT`. |
+| `HASH_SHA256_REPLACE` | Deterministic on its own (unless salted), so it is consistent regardless of scope. | Same as `DOCUMENT`. |
+| `STATIC_REPLACE`, `MASK`, `REDACT` | Produce a fixed output for a given input, so scope has no effect. | Same as `DOCUMENT`. |
 
 ## Managing the mappings (API)
 
@@ -69,9 +82,12 @@ Deleting a mapping means the next occurrence of that value is treated as new and
 
 ## Random date shifts
 
-A date filter strategy of `SHIFT` with `"shiftRandom": true` and `"replacementScope": "CONTEXT"` draws one random shift for the context, for the first date the context sees, and moves every date redacted in that context by the same number of days. Dates keep their order and the number of days between them, within a document and across documents. With the default `DOCUMENT` scope, or with no context, each date is shifted by its own random amount. See [Dates](../policies/filters/common_filters/dates.md).
+A date filter strategy of `SHIFT` with `"shiftRandom": true` draws one random shift for each replacement scope, for the first date it sees, and moves every date in that scope by the same number of days, so dates keep their order and the number of days between them. See [Dates](../policies/filters/common_filters/dates.md).
 
-Philter stores the shift with the context, not as a mapping:
+* With the default `DOCUMENT` scope, with or without a context, every date in one document is moved by the same number of days, and each document gets its own shift. The shift is kept only for the request.
+* With `"replacementScope": "CONTEXT"`, one shift is drawn for the context and every date redacted in that context is moved by it, within a document and across documents.
+
+Philter stores a `CONTEXT`-scoped shift with the context, not as a mapping:
 
 * It is not evicted when the context reaches `MAX_CONTEXT_SIZE`, and does not count toward it.
 * It does not appear in `GET /api/contexts/{name}/entries` and cannot be deleted through the entry endpoints.

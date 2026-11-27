@@ -209,7 +209,7 @@ For more information on these values and format-preserving encryption, refer to 
 
 Replaces the identified text with a fake value but of the same type. For example, an SSN will be replaced by a random text having the format `###-##-####`, such as 123-45-6789. An email address will be replaced with a randomly generated email address. Available to all filter types.
 
-By default each document is pseudonymized independently. To make the same value map to the same fake value across every document in a [context](../redaction/contexts.md), set `"replacementScope": "CONTEXT"` on the strategy. See [Consistent Pseudonymization](../redaction/replacement_scope.md).
+By default each document is pseudonymized independently: every occurrence of a value in one document gets the same fake value, and the next document gets new ones. To make the same value map to the same fake value across every document in a [context](../redaction/contexts.md), set `"replacementScope": "CONTEXT"` on the strategy. See [Consistent Pseudonymization](../redaction/replacement_scope.md).
 
 An example policy using the `RANDOM_REPLACE` filter strategy:
 
@@ -288,7 +288,7 @@ Replaces the identified text using a lookup table. Not available to the date, zi
 | `generator`        | The name of a generator in the policy's top-level `generators` object, called for a value not in the lookup table.                                | None     |
 | `fallbackStrategy` | The strategy applied when the value is not in the lookup table and no generator produces an accepted value. `MAP_REPLACE` is treated as `REDACT`. | `REDACT` |
 
-A generated value is rejected, and the fallback strategy applied, when it is blank, equals the original value, or contains sensitive information detected by the policy's filters. With `"replacementScope": "CONTEXT"`, a value receives the same replacement across the documents in a context.
+A generated value is rejected, and the fallback strategy applied, when it is blank, equals the original value, or contains sensitive information detected by the policy's filters. With the default `"replacementScope": "DOCUMENT"`, the generator is called once for a repeated value and every occurrence in the document receives that replacement. With `"replacementScope": "CONTEXT"`, a value receives the same replacement across the documents in a context.
 
 Generators are declared by name in the top-level `generators` object. The only supported `type` is `ollama`, which calls an Ollama-compatible `/api/generate` endpoint. A generator's `endpoint` must be one an administrator allows with the `GENERATOR_ALLOWED_ENDPOINTS` [setting](../settings.md#redaction-services); a policy naming any other endpoint is refused, since a generator receives the values being replaced. `prompt` may contain `{{token}}` and `{{label}}` placeholders. `timeoutMs` sets the request timeout in milliseconds.
 

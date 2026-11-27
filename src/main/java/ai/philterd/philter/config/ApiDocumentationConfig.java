@@ -34,9 +34,10 @@ public class ApiDocumentationConfig {
     private static final String EMAIL_REPORT = ai.philterd.philter.services.filtering.ResultHeaders.EMAIL_REPORT;
     private static final String EMAIL_REPORT_DESCRIPTION = "Email messages only: counts of attachments and inline images "
             + "kept without being inspected, attachments removed (every attachment under attachments: remove, and those "
-            + "attachments: redact could not redact), and dropped signatures, as uninspected-attachments=N, "
-            + "uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N, followed by unchecked-attachments=N when the leftover check "
-            + "ran, counting redacted attachments whose output could not be read or whose own check failed. No filenames.";
+            + "attachments: redact could not redact), inline images removed, and dropped signatures, as "
+            + "uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, removed-inline-images=N, "
+            + "dropped-signatures=N, followed by unchecked-attachments=N when the leftover check ran, counting redacted "
+            + "attachments whose output could not be read or whose own check failed. No filenames.";
 
     @Bean
     public OpenApiCustomizer apiWireContracts() {

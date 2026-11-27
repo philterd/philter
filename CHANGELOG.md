@@ -30,7 +30,8 @@ Uses Phileas 4.6.0.
   counted by `philter_leftover_checks_total` and `philter_leftover_findings_total`, never with their text.
   Adds a database migration (schema version 3).
 - **Email report:** email responses carry `X-Philter-Email-Report`, counting the attachments and inline
-  images kept uninspected, attachments removed, and dropped signatures.
+  images kept uninspected, attachments and inline images removed, and dropped signatures
+  ([#232](https://github.com/philterd/philter/issues/232)).
 - **Email redaction:** `POST /api/filter` accepts email messages, `message/rfc822` (`.eml`) and
   `application/vnd.ms-outlook` (`.msg`), and returns `message/rfc822`, synchronously or queued
   ([#220](https://github.com/philterd/philter/issues/220)). Headers and text bodies are redacted with the

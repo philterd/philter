@@ -347,7 +347,8 @@ class EmailMessagesApiIT {
         final HttpResponse<String> response = redact("?p=redact-attachments&async=false", EML,
                 EmailMessages.emlWithAttachments(TEXT, textAttachments()));
         assertEquals(200, response.statusCode(), response.body());
-        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, "
+                + "removed-inline-images=0, dropped-signatures=0",
                 response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
 
         final Map<String, MimeBodyPart> attachments = attachmentsOf(response.body());
@@ -375,7 +376,8 @@ class EmailMessagesApiIT {
             final HttpResponse<String> unreadable = redact("?p=redact-attachments&async=false", EML,
                     EmailMessages.emlWithAttachments(TEXT, attachment));
             assertEquals(200, unreadable.statusCode(), unreadable.body());
-            assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, dropped-signatures=0",
+            assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, "
+                    + "removed-inline-images=0, dropped-signatures=0",
                     unreadable.headers().firstValue("X-Philter-Email-Report").orElseThrow(), attachment.fileName());
             assertTrue(attachmentsOf(unreadable.body()).isEmpty(), unreadable.body());
             assertFalse(unreadable.body().contains(SSN), unreadable.body());
@@ -390,7 +392,8 @@ class EmailMessagesApiIT {
         final HttpResponse<String> response = redact("?p=keep-attachments&async=false", EML,
                 EmailMessages.emlWithAttachments(TEXT, textAttachments()));
         assertEquals(200, response.statusCode(), response.body());
-        assertEquals("uninspected-attachments=3, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
+        assertEquals("uninspected-attachments=3, uninspected-inline-images=0, removed-attachments=0, "
+                + "removed-inline-images=0, dropped-signatures=0",
                 response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
 
         final Map<String, MimeBodyPart> attachments = attachmentsOf(response.body());
@@ -408,7 +411,8 @@ class EmailMessagesApiIT {
                 EmailMessages.emlWithInlineImageAndAttachment(TEXT, "report.txt", "text/plain",
                         "Quarterly report".getBytes(StandardCharsets.UTF_8)));
         assertEquals(200, response.statusCode(), response.body());
-        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, dropped-signatures=0",
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, "
+                + "removed-inline-images=1, dropped-signatures=0",
                 response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
 
         final MimeMessage returned = new MimeMessage(EmailMessages.SESSION,
@@ -423,6 +427,26 @@ class EmailMessagesApiIT {
         assertTrue(response.body().contains("about:blank"), response.body());
         assertTrue(response.body().contains("{{{REDACTED-ssn}}}"), response.body());
         assertFalse(response.body().contains(SSN), response.body());
+    }
+
+    @Test
+    @DisplayName("Under inlineImages: keep, an inline image is returned uninspected and not counted as removed")
+    void inlineImagesUnderKeepAreUninspected() throws Exception {
+        savePolicy("keep-images", SSN_POLICY.substring(0, SSN_POLICY.length() - 1)
+                + ",\"config\":{\"email\":{\"inlineImages\":\"keep\"}}}");
+        final HttpResponse<String> response = redact("?p=keep-images&async=false", EML,
+                EmailMessages.emlWithInlineImageAndAttachment(TEXT, "report.txt", "text/plain",
+                        "Quarterly report".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=1, removed-attachments=1, "
+                + "removed-inline-images=0, dropped-signatures=0",
+                response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
+
+        final List<String> types = new ArrayList<>();
+        collectTypes(new MimeMessage(EmailMessages.SESSION,
+                new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8))), types);
+        assertTrue(types.stream().anyMatch(t -> t.startsWith("image/png")), types.toString());
+        assertTrue(response.body().contains("cid:logo@example.com"), response.body());
     }
 
     private static void collectTypes(final Part part, final List<String> types) throws Exception {

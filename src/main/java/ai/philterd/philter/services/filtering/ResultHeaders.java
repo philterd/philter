@@ -93,6 +93,7 @@ public final class ResultHeaders {
         counts.add("uninspected-attachments=" + report.getUninspectedAttachments().size());
         counts.add("uninspected-inline-images=" + report.getUninspectedInlineImages().size());
         counts.add("removed-attachments=" + report.getRemovedAttachments().size());
+        counts.add("removed-inline-images=" + report.getRemovedInlineImages().size());
         counts.add("dropped-signatures=" + report.getDroppedSignatures().size());
         final LeftoverCheckResult check = result.getLeftoverCheck();
         if (check != null && check.isPerformed()) {

@@ -234,14 +234,16 @@ class LeftoverCheckApiIT {
                 EmailMessages.emlWithAttachment(TEXT, "notes.txt", "text/plain", "Notes".getBytes(StandardCharsets.UTF_8)));
         assertFound(eml);
         assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, "
-                + "dropped-signatures=0, unchecked-attachments=0", eml.headers().firstValue("X-Philter-Email-Report").orElse(null));
+                + "removed-inline-images=0, dropped-signatures=0, unchecked-attachments=0",
+                eml.headers().firstValue("X-Philter-Email-Report").orElse(null));
 
         final HttpResponse<String> msg = post("/api/filter?p=always&async=false", MSG, EML, EmailMessages.msg("Hello", TEXT));
         assertFound(msg);
         assertTrue(msg.headers().firstValue("X-Philter-Email-Report").isPresent());
 
         // Without the check, the email report is still returned, without the unchecked count.
-        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, "
+                + "removed-inline-images=0, dropped-signatures=0",
                 post("/api/filter?p=no-check&async=false", EML, EML, EmailMessages.eml("Hello", TEXT)).headers()
                         .firstValue("X-Philter-Email-Report").orElse(null));
     }
@@ -286,12 +288,19 @@ class LeftoverCheckApiIT {
         final String uncheckedId = await(unchecked);
         assertNotChecked(send(authenticated(apiKey, "/api/documents/" + uncheckedId + "/status").GET().build()));
 
-        final HttpResponse<String> email = post("/api/filter?p=always", EML, EML, EmailMessages.eml("Hello", TEXT));
+        final HttpResponse<String> email = post("/api/filter?p=always", EML, EML,
+                EmailMessages.emlWithInlineImageAndAttachment(TEXT, "notes.txt", "text/plain",
+                        "Notes".getBytes(StandardCharsets.UTF_8)));
         final String emailId = await(email);
+        final HttpResponse<String> emailStatus = send(authenticated(apiKey, "/api/documents/" + emailId + "/status")
+                .GET().build());
         final HttpResponse<String> download = send(authenticated(apiKey, "/api/documents/" + emailId).GET().build());
         assertFound(download);
-        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=0, "
-                + "dropped-signatures=0, unchecked-attachments=0", download.headers().firstValue("X-Philter-Email-Report").orElse(null));
+        for (final HttpResponse<String> response : List.of(emailStatus, download)) {
+            assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, "
+                    + "removed-inline-images=1, dropped-signatures=0, unchecked-attachments=0",
+                    response.headers().firstValue("X-Philter-Email-Report").orElse(null));
+        }
     }
 
     private String await(final HttpResponse<String> accepted) throws Exception {

@@ -30,15 +30,16 @@ Uses Phileas 4.6.0.
   counted by `philter_leftover_checks_total` and `philter_leftover_findings_total`, never with their text.
   Adds a database migration (schema version 3).
 - **Email report:** email responses carry `X-Philter-Email-Report`, counting the attachments and inline
-  images kept uninspected, attachments removed under `attachments: redact`, and dropped signatures.
+  images kept uninspected, attachments removed, and dropped signatures.
 - **Email redaction:** `POST /api/filter` accepts email messages, `message/rfc822` (`.eml`) and
   `application/vnd.ms-outlook` (`.msg`), and returns `message/rfc822`, synchronously or queued
   ([#220](https://github.com/philterd/philter/issues/220)). Headers and text bodies are redacted with the
   policy, and the policy's `config.email` decides which other headers are removed and whether
-  attachments and inline images are kept, removed, or (for PDF, Word, Excel, RTF, CSV, and plain-text
-  attachments, [#229](https://github.com/philterd/philter/issues/229)) redacted. A redacted attachment
-  keeps its filename and media type; one that cannot be read in its charset, or cannot be redacted, is
-  removed and counted in `removed-attachments`. See
+  attachments and inline images are removed (the default,
+  [#231](https://github.com/philterd/philter/issues/231)), kept uninspected, or (for PDF, Word, Excel, RTF,
+  CSV, and plain-text attachments, [#229](https://github.com/philterd/philter/issues/229)) redacted. A
+  redacted attachment keeps its filename and media type; one that cannot be read in its charset, or cannot
+  be redacted, is removed and counted in `removed-attachments`. See
   [Redacted attachments](docs/docs/redaction/redacting_documents.md#redacted-attachments) and the
   [Phileas release notes](https://github.com/philterd/phileas/blob/main/RELEASE_NOTES.md).
   An Outlook message is converted to `.eml`, a signed message loses its signature, and an encrypted

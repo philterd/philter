@@ -26,6 +26,8 @@ import ai.philterd.philter.testutil.InMemoryTestConfiguration;
 import ai.philterd.philter.testutil.RtfDocuments;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
@@ -45,6 +47,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +76,7 @@ class EmailMessagesApiIT {
     private static final String SSN_POLICY =
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
 
-    // Removes the Date header and every attachment, where the defaults keep both.
+    // Removes the Date header and keeps inline images, where the defaults do the opposite.
     private static final String STRICT_EMAIL_POLICY =
             "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}},"
                     + "\"config\":{\"email\":{\"headers\":{\"removeTechnical\":true,\"removeIdentity\":true,"
@@ -205,7 +208,7 @@ class EmailMessagesApiIT {
         assertEquals(200, strict.statusCode(), strict.body());
 
         assertTrue(defaults.body().contains("Date:"), defaults.body());
-        assertTrue(defaults.body().contains("report.txt"), defaults.body());
+        assertFalse(defaults.body().contains("report.txt"), defaults.body());
         assertFalse(strict.body().contains("Date:"), strict.body());
         assertFalse(strict.body().contains("report.txt"), strict.body());
         assertFalse(defaults.body().contains(SSN) || strict.body().contains(SSN));
@@ -382,7 +385,9 @@ class EmailMessagesApiIT {
     @Test
     @DisplayName("CSV, RTF, and plain-text attachments under attachments: keep are returned uninspected")
     void textAttachmentsUnderKeepAreUninspected() throws Exception {
-        final HttpResponse<String> response = redact("?p=ssn-only&async=false", EML,
+        savePolicy("keep-attachments", SSN_POLICY.substring(0, SSN_POLICY.length() - 1)
+                + ",\"config\":{\"email\":{\"attachments\":\"keep\"}}}");
+        final HttpResponse<String> response = redact("?p=keep-attachments&async=false", EML,
                 EmailMessages.emlWithAttachments(TEXT, textAttachments()));
         assertEquals(200, response.statusCode(), response.body());
         assertEquals("uninspected-attachments=3, uninspected-inline-images=0, removed-attachments=0, dropped-signatures=0",
@@ -393,6 +398,39 @@ class EmailMessagesApiIT {
         assertEquals(sent.length, attachments.size());
         for (final EmailMessages.Attachment attachment : sent) {
             assertArrayEquals(attachment.content(), contentOf(attachments.get(attachment.fileName())), attachment.fileName());
+        }
+    }
+
+    @Test
+    @DisplayName("A policy without config.email removes attachments and inline images")
+    void attachmentsAndInlineImagesAreRemovedByDefault() throws Exception {
+        final HttpResponse<String> response = redact("?p=ssn-only&async=false", EML,
+                EmailMessages.emlWithInlineImageAndAttachment(TEXT, "report.txt", "text/plain",
+                        "Quarterly report".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, dropped-signatures=0",
+                response.headers().firstValue("X-Philter-Email-Report").orElseThrow());
+
+        final MimeMessage returned = new MimeMessage(EmailMessages.SESSION,
+                new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8)));
+        final List<String> types = new ArrayList<>();
+        collectTypes(returned, types);
+        assertTrue(types.stream().noneMatch(t -> t.startsWith("image/")), types.toString());
+        assertTrue(types.stream().anyMatch(t -> t.startsWith("text/html")), "the body is kept: " + types);
+        assertFalse(response.body().contains("report.txt"), response.body());
+        // The image's reference is pointed at about:blank.
+        assertFalse(response.body().contains("cid:logo@example.com"), response.body());
+        assertTrue(response.body().contains("about:blank"), response.body());
+        assertTrue(response.body().contains("{{{REDACTED-ssn}}}"), response.body());
+        assertFalse(response.body().contains(SSN), response.body());
+    }
+
+    private static void collectTypes(final Part part, final List<String> types) throws Exception {
+        types.add(part.getContentType().toLowerCase());
+        if (part.getContent() instanceof Multipart multipart) {
+            for (int i = 0; i < multipart.getCount(); i++) {
+                collectTypes(multipart.getBodyPart(i), types);
+            }
         }
     }
 

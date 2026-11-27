@@ -64,6 +64,24 @@ public final class EmailMessages {
         return bytes(message);
     }
 
+    /** A message with an HTML body showing an inline image by its Content-ID, and one attachment. */
+    public static byte[] emlWithInlineImageAndAttachment(final String body, final String fileName, final String type,
+                                                         final byte[] content) throws Exception {
+        final MimeBodyPart html = new MimeBodyPart();
+        html.setText("<p>" + body + "</p><img src=\"cid:logo@example.com\">", "UTF-8", "html");
+        final MimeBodyPart image = new MimeBodyPart();
+        image.setDataHandler(new jakarta.activation.DataHandler(new jakarta.mail.util.ByteArrayDataSource(
+                new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a}, "image/png")));
+        image.setContentID("<logo@example.com>");
+        image.setDisposition(MimeBodyPart.INLINE);
+        image.setHeader("Content-Transfer-Encoding", "base64");
+        final MimeBodyPart related = new MimeBodyPart();
+        related.setContent(new MimeMultipart("related", html, image));
+        final MimeMessage message = message("With an inline image", null);
+        message.setContent(new MimeMultipart(related, attachment(fileName, type, content)));
+        return bytes(message);
+    }
+
     /** A message with a text body and the given number of small attachments. */
     public static byte[] emlWithAttachments(final int count) throws Exception {
         final MimeMultipart multipart = new MimeMultipart(text("See the attached notes."));

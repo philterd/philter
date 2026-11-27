@@ -233,7 +233,7 @@ class LeftoverCheckApiIT {
         final HttpResponse<String> eml = post("/api/filter?p=always&async=false", EML, EML,
                 EmailMessages.emlWithAttachment(TEXT, "notes.txt", "text/plain", "Notes".getBytes(StandardCharsets.UTF_8)));
         assertFound(eml);
-        assertEquals("uninspected-attachments=1, uninspected-inline-images=0, removed-attachments=0, "
+        assertEquals("uninspected-attachments=0, uninspected-inline-images=0, removed-attachments=1, "
                 + "dropped-signatures=0, unchecked-attachments=0", eml.headers().firstValue("X-Philter-Email-Report").orElse(null));
 
         final HttpResponse<String> msg = post("/api/filter?p=always&async=false", MSG, EML, EmailMessages.msg("Hello", TEXT));

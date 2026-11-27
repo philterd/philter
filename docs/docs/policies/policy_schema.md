@@ -80,8 +80,8 @@ Global configuration settings.
 | `headers.removeIdentity` | boolean | `true` | Remove `Bcc`, `Reply-To`, `Sender`, and `Resent-` headers. |
 | `headers.removeDate` | boolean | `false` | Remove the `Date` header. |
 | `headers.removeSubject` | boolean | `false` | Remove the `Subject` header instead of redacting it. |
-| `attachments` | string | `keep` | `keep` (uninspected), `remove`, or `redact` (PDF, Word, Excel, RTF, CSV, and plain-text attachments are redacted; others are removed). |
-| `inlineImages` | string | `keep` | `keep` (uninspected) or `remove`. |
+| `attachments` | string | `remove` | `remove`, `keep` (uninspected), or `redact` (PDF, Word, Excel, RTF, CSV, and plain-text attachments are redacted; others are removed). |
+| `inlineImages` | string | `remove` | `remove` or `keep` (uninspected). |
 
 See [Email messages](../redaction/redacting_documents.md#email-messages).
 

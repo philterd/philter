@@ -99,8 +99,8 @@ The policy's `config.email` decides what happens to other headers, attachments, 
             "removeDate": false,
             "removeSubject": false
          },
-         "attachments": "keep",
-         "inlineImages": "keep"
+         "attachments": "remove",
+         "inlineImages": "remove"
       }
    }
 }
@@ -112,10 +112,10 @@ The policy's `config.email` decides what happens to other headers, attachments, 
 | `headers.removeIdentity` | `true` | Removes `Bcc`, `Reply-To`, `Sender`, and every header beginning `Resent-`. |
 | `headers.removeDate` | `false` | Removes the `Date` header. |
 | `headers.removeSubject` | `false` | Removes the `Subject` header instead of redacting it. |
-| `attachments` | `keep` | `keep` leaves attachments as they are, **not inspected or redacted**. `remove` deletes them, including their filenames. `redact` redacts each PDF, Word (`.docx`), Excel (`.xlsx`), RTF, CSV, and plain-text attachment with the same policy, keeping its filename and media type, and removes any other attachment and any that cannot be redacted. See [Redacted attachments](#redacted-attachments). |
-| `inlineImages` | `keep` | `keep` leaves images embedded in the body as they are, not inspected. `remove` deletes them. |
+| `attachments` | `remove` | `remove` deletes attachments, including their filenames. `keep` leaves them as they are, **not inspected or redacted**. `redact` redacts each PDF, Word (`.docx`), Excel (`.xlsx`), RTF, CSV, and plain-text attachment with the same policy, keeping its filename and media type, and removes any other attachment and any that cannot be redacted. See [Redacted attachments](#redacted-attachments). |
+| `inlineImages` | `remove` | `remove` deletes images embedded in the body. `keep` leaves them as they are, not inspected. |
 
-Other headers are kept as they are. Under the default `attachments: keep`, an attachment can contain sensitive information that is returned unchanged; use `remove` or `redact` when that matters. Under `attachments: remove`, a forwarded message attached to the message is removed too; under `keep` and `redact`, it is redacted as a nested message.
+Other headers are kept as they are. Under the default `remove`, attachments and inline images are deleted, so a policy without `config.email` returns neither. Under `keep`, an attachment or inline image can contain sensitive information that is returned unchanged; use `redact` to keep the supported attachment types with their content redacted. Under `attachments: remove`, a forwarded message attached to the message is removed too; under `keep` and `redact`, it is redacted as a nested message.
 
 #### Redacted attachments
 
@@ -138,7 +138,7 @@ Limitations:
 
 *   A signed message (S/MIME or PGP) is redacted and its signature is removed, since redacting the message invalidates it.
 *   An encrypted message cannot be read, so it is refused with `400 Bad Request` and a message saying so, and nothing is returned. An S/MIME or PGP/MIME encrypted message is refused when it is submitted, queued or not. A message whose body is PGP-encrypted text is found only when it is redacted, so if it was queued, its job fails with that message.
-*   The `X-Philter-Email-Report` response header counts the attachments and inline images kept uninspected, the attachments removed under `redact` because they could not be redacted, and the dropped signatures, as `uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N`. It names no files. With the policy's [leftover check](../policies/filter_policies.md#leftover-check), it also counts `unchecked-attachments`, redacted attachments whose output could not be read or whose own check failed.
+*   The `X-Philter-Email-Report` response header counts the attachments and inline images kept uninspected, the attachments removed (every attachment under `remove`, and those `redact` could not redact), and the dropped signatures, as `uninspected-attachments=N, uninspected-inline-images=N, removed-attachments=N, dropped-signatures=N`. It names no files. With the policy's [leftover check](../policies/filter_policies.md#leftover-check), it also counts `unchecked-attachments`, redacted attachments whose output could not be read or whose own check failed.
 
 A body declared as `application/vnd.ms-outlook` must be an Outlook message: a legacy Word or Excel file, which shares its container format, is refused with `415 Unsupported Media Type`. A body declared as `message/rfc822` must parse as a MIME message with a block of message headers, and is refused with `415` otherwise. A message larger than [`EMAIL_MAX_BYTES`](../settings.md#redaction-engine), with an attachment larger than `EMAIL_MAX_ATTACHMENT_BYTES`, with more than `EMAIL_MAX_ATTACHMENTS` attachments, or with messages nested more than `EMAIL_MAX_NESTING_DEPTH` deep is refused with `413 Payload Too Large` before redaction starts.
 

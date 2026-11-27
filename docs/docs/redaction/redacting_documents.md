@@ -25,24 +25,80 @@ Philter does not redact other Office formats (`.doc`, `.xls`, PowerPoint, templa
 
 Office documents keep copies of text outside the visible body, so Philter redacts these as well:
 
-*   **Word:** body paragraphs and tables, headers and footers, footnotes, endnotes, comments, text in shapes, text boxes, and SmartArt, chart text and cached chart values, hyperlink targets, field instructions, tracked deletions, and embedded Word and Excel documents.
+*   **Word:** body paragraphs and tables, headers and footers, footnotes, endnotes, comments, text in shapes, text boxes, and SmartArt, chart text and cached chart values, hyperlink targets, field instructions, tracked changes, hidden text, and embedded Word and Excel documents.
 *   **Excel:** text and number cells, the shared strings redacted cells leave behind, print headers and footers, comments, text in shapes and text boxes, chart text and cached chart values, cached formula results, pivot caches, and embedded Word and Excel documents.
 
-Who wrote and edited a document is cleared whatever the policy, in embedded Word and Excel documents too, and is not run through detection. Word comment and tracked-change authors and Excel comment authors become `Redacted`, Word comment initials and `word/people.xml` are removed, Excel threaded-comment people lose their identifiers, and the creator, last modified by, company, and manager document properties are emptied.
+A replacement is written in place of the redacted text and takes its formatting. Parts of the document that redaction does not change are returned unchanged.
 
-Embedded objects that cannot be inspected, anything other than an embedded Word or Excel document or one that cannot be read, are removed. Parts of the document that redaction does not change are returned unchanged.
+### Word and Excel settings in the policy
+
+The policy's `config.word` and `config.excel` decide how the parts beyond the body are handled, so two policies can handle the same document differently. A queued document is redacted with the settings of the policy version in force when it was accepted. The defaults are:
+
+```json
+{
+   "config": {
+      "word": {
+         "headersFooters": "redact",
+         "comments": "remove",
+         "trackedChanges": "accept",
+         "hiddenText": "remove",
+         "charts": "redact",
+         "uninspectableObjects": "remove",
+         "removeDocumentProperties": true,
+         "highlight": false
+      },
+      "excel": {
+         "printHeadersFooters": "redact",
+         "charts": "redact",
+         "formulaCaches": "redact",
+         "pivotCaches": "redact",
+         "uninspectableObjects": "remove",
+         "removeDocumentProperties": true
+      }
+   }
+}
+```
+
+**`config.word`**
+
+| Setting | Default | Effect |
+|---|---|---|
+| `headersFooters` | `redact` | `redact` redacts headers and footers. `keep` leaves them **unscanned**. |
+| `comments` | `remove` | `remove` deletes every comment, with its author and its place in the text. `redact` keeps comments and redacts their text. |
+| `trackedChanges` | `accept` | `accept` accepts every insertion and deletion and removes the revision history, so deleted text is gone and inserted text is redacted as body text. `redact` keeps the revisions and redacts their text, deleted text included. |
+| `hiddenText` | `remove` | `remove` deletes text formatted hidden. `redact` keeps it and redacts it like visible text. |
+| `charts` | `redact` | `redact` redacts chart titles and labels, cached chart values, and each chart's embedded workbook. `keep` leaves charts **unscanned**. |
+| `uninspectableObjects` | `remove` | `remove` deletes embedded objects that cannot be inspected: anything other than an embedded Word or Excel document, and one that cannot be read. `keep` leaves them **unredacted**. |
+| `removeDocumentProperties` | `true` | `true` clears the title, subject, keywords, category, and comments document properties, and every custom property. `false` keeps them, **unredacted**. |
+| `highlight` | `false` | `true` highlights each replacement in yellow. |
+
+**`config.excel`**
+
+| Setting | Default | Effect |
+|---|---|---|
+| `printHeadersFooters` | `redact` | `redact` redacts print headers and footers. `keep` leaves them **unscanned**. |
+| `charts` | `redact` | As for Word. |
+| `formulaCaches` | `redact` | `redact` scans formula cells' cached results, and when any cell is redacted, clears the cached results and sets the workbook to recalculate when it is opened. `keep` leaves formula cells as they are, so a cached copy of a redacted value can remain. |
+| `pivotCaches` | `redact` | `redact` redacts pivot caches and sets a redacted cache to refresh when it is opened. `keep` leaves them **unscanned**. |
+| `uninspectableObjects` | `remove` | As for Word. |
+| `removeDocumentProperties` | `true` | As for Word. |
+
+Under the defaults, comments, tracked deletions, hidden text, and uninspectable objects are removed rather than redacted, and the document properties above are cleared rather than redacted. Excel cell text and comments are always redacted. A Word or Excel document embedded in another follows the same settings. A setting with an unknown key or value is refused with `400 Bad Request` when the policy is created or updated.
+
+Who wrote and edited a document is cleared under every setting, `removeDocumentProperties: false` included, in embedded Word and Excel documents too, and is not run through detection. Word comment and tracked-change authors and Excel comment authors become `Redacted`, Word comment initials and `word/people.xml` are removed, Excel threaded-comment people lose their identifiers, and the creator, last modified by, company, and manager document properties are emptied.
 
 Limitations:
 
-*   Document properties other than those cleared above, such as the title, subject, keywords, and custom properties, are not redacted.
-*   A Word paragraph that is redacted loses its inline formatting, and hyperlinks and fields in it become plain text.
-*   A redacted Excel cell is written as text, and a redacted formula cell loses its formula. A workbook with a redacted cell recalculates when it is opened.
+*   Document properties other than those `removeDocumentProperties` clears and the authorship properties above are kept and are not redacted, such as the template name, the hyperlink base, the sheet names and headings listed in `docProps/app.xml`, and the created and modified dates.
+*   A value that spans formatting runs in Word is written in the formatting of the run that holds its first character.
+*   A redacted Excel cell is written as text, and a redacted formula cell loses its formula.
 *   Excel cells are scanned by their stored value, not as Excel displays them. Excel stores most dates as serial numbers, so a date displayed as `3/14/1985` is scanned as `31120` and is not found by the date filter.
+*   `hiddenText: remove` removes text formatted hidden directly. Text hidden by a character or paragraph style is kept and redacted like visible text.
 *   Only the Transitional Office Open XML format, which Word and Excel save by default, is supported. Password-protected documents and documents saved as Strict Open XML are refused.
 
 A body declared as Word or Excel must be a document of that type: an Excel workbook sent as Word, or any other ZIP file, is refused with `415 Unsupported Media Type`. A document that decompresses to more than [`OFFICE_MAX_UNCOMPRESSED_BYTES`](../settings.md#redaction-engine), has more than `OFFICE_MAX_ENTRIES` entries, or has an entry larger than 100 KB that expands to more than 100 times its compressed size is refused with `413 Payload Too Large`.
 
-In the [redaction ledger](ledgers.md), the start position of a redaction in a Word or Excel document is its offset within the paragraph, cell, or other piece of text it was found in, not within the whole document.
+In the [redaction ledger](ledgers.md), the start position of a redaction in a Word or Excel document is its offset within the paragraph, cell, or other piece of text it was found in, not within the whole document. Content a setting removes, such as a removed comment, an accepted deletion, removed hidden text, or a removed embedded object, is removed before detection, so values in it are not detections and are not recorded. A part a setting leaves unscanned is not recorded either. The policy version recorded with each entry shows which settings applied.
 
 ## RTF Documents
 

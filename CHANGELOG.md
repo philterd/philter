@@ -18,7 +18,13 @@ Uses Phileas 4.6.0.
   and returns an editable document of the same format, synchronously or queued, with policies,
   contexts, and the ledger as for PDF ([#213](https://github.com/philterd/philter/issues/213)). A body
   declared as Word or Excel must be a document of that type, and `OFFICE_MAX_UNCOMPRESSED_BYTES` and
-  `OFFICE_MAX_ENTRIES` limit what one may decompress to. Author names and the creator, last modified by,
+  `OFFICE_MAX_ENTRIES` limit what one may decompress to. The policy's `config.word` and `config.excel`
+  set how headers and footers, comments, tracked changes, hidden text, charts, formula and pivot caches,
+  embedded objects, and document properties are handled
+  ([#219](https://github.com/philterd/philter/issues/219)). By default comments, tracked deletions, hidden
+  text, and uninspectable embedded objects are removed, tracked changes are accepted, the other parts are
+  redacted, and the title, subject, keywords, category, comments, and custom properties are cleared. Content
+  a setting removes is not recorded in the ledger. Author names and the creator, last modified by,
   company, and manager properties are cleared whatever the policy.
 - **Leftover check:** a policy's `config.review.leftoverCheck` runs detection again over the redacted output
   and reports what is still detectable ([#218](https://github.com/philterd/philter/issues/218)). The

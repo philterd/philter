@@ -44,6 +44,8 @@ Global configuration settings.
 |----------|------|-------------|
 | `splitting` | object | Whether and how to split input text before filtering. |
 | `pdf` | object | PDF rendering settings for PDF redaction. |
+| `word` | object | Handling of headers and footers, comments, tracked changes, hidden text, charts, embedded objects, and document properties in Word documents, and in RTF documents where RTF has the part. |
+| `excel` | object | Handling of print headers and footers, charts, formula caches, pivot caches, embedded objects, and document properties in Excel workbooks. |
 | `email` | object | Header, attachment, and inline image handling for email messages. |
 | `review` | object | Selecting requests for human review: a sampling rate and the leftover check. |
 | `postFilters` | object | Post-processing applied to redacted output. |
@@ -71,6 +73,32 @@ Global configuration settings.
 | `dpi` | integer | `150` | Resolution of the image a redacted page is rendered to. It sets the image's detail and the output's file size, not the page size. |
 | `compressionQuality` | number (0.0–1.0) | `1.0` | JPEG compression quality for PDF output. |
 | `preserveUnredactedPages` | boolean | `false` | Keep pages with no redactions in their original form. |
+
+**`config.word`**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `headersFooters` | string | `redact` | `redact` or `keep` (unscanned). |
+| `comments` | string | `remove` | `remove` or `redact`. |
+| `trackedChanges` | string | `accept` | `accept` (deleted text removed) or `redact` (revisions kept, deleted text included). |
+| `hiddenText` | string | `remove` | `remove` or `redact`. |
+| `charts` | string | `redact` | `redact` or `keep` (unscanned). |
+| `uninspectableObjects` | string | `remove` | `remove` or `keep` (unredacted). |
+| `removeDocumentProperties` | boolean | `true` | Clear the title, subject, keywords, category, and comments properties, and custom properties. Authorship is cleared either way. |
+| `highlight` | boolean | `false` | Highlight each replacement. |
+
+**`config.excel`**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `printHeadersFooters` | string | `redact` | `redact` or `keep` (unscanned). |
+| `charts` | string | `redact` | `redact` or `keep` (unscanned). |
+| `formulaCaches` | string | `redact` | `redact` or `keep` (a cached copy of a redacted value can remain). |
+| `pivotCaches` | string | `redact` | `redact` or `keep` (unscanned). |
+| `uninspectableObjects` | string | `remove` | `remove` or `keep` (unredacted). |
+| `removeDocumentProperties` | boolean | `true` | As for `config.word`. |
+
+See [Word and Excel documents](../redaction/redacting_documents.md#word-and-excel-settings-in-the-policy).
 
 **`config.email`**
 

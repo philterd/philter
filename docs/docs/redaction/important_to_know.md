@@ -4,7 +4,7 @@ Redaction is a complex process with many variables. To ensure you get the best r
 
 ## Document Metadata is Not Redacted
 
-Philter supports text, PDF, Word, Excel, RTF, and email redaction. Do not rely on sensitive-information detection to scrub file properties, embedded-image metadata, or other non-text surfaces. Review those surfaces with appropriate tools. In Word and Excel documents, document properties such as the author, and the author names Word records on comments and tracked changes, are not redacted; see [Word and Excel documents](redacting_documents.md#word-and-excel-documents) for what is. Email attachments and inline images are removed by default, and are returned uninspected when the policy's `config.email` keeps them; see [Email messages](redacting_documents.md#email-messages).
+Philter supports text, PDF, Word, Excel, RTF, and email redaction. Do not rely on sensitive-information detection to scrub file properties, embedded-image metadata, or other non-text surfaces. Review those surfaces with appropriate tools. In Word and Excel documents, authors and the author properties are cleared rather than run through detection, the title, subject, keywords, and custom properties are cleared unless the policy's `config.word` or `config.excel` sets `removeDocumentProperties` to `false`, and other properties are kept; see [Word and Excel documents](redacting_documents.md#word-and-excel-documents). Email attachments and inline images are removed by default, and are returned uninspected when the policy's `config.email` keeps them; see [Email messages](redacting_documents.md#email-messages).
 
 Ensure you scrub metadata using specialized tools before or after the redaction process if your security policy requires it.
 
